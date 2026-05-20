@@ -1,0 +1,51 @@
+services:
+  backend:
+    build:
+      context: ./back
+      dockerfile: Dockerfile
+    # В продакшене volume НЕ монтируется - образ полностью автономен
+    networks:
+      - app_network
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+    environment:
+      - PYTHONUNBUFFERED=1
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/products/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  frontend:
+    build:
+      context: ./front
+    # Фронтенд также доступен через nginx, не выставляем порты хоста.
+    depends_on:
+      - backend
+    networks:
+      - app_network
+
+  nginx:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    volumes:
+      - ./back/staticfiles:/staticfiles
+      - ./back/media:/media
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_started
+    networks:
+      - app_network
+
+networks:
+  app_network:
+    driver: bridge

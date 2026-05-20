@@ -1,0 +1,6 @@
+{% extends "admin/base.html" %}
+
+{% block branding %}
+    <h1 id="site-name"><a href="{% url 'admin:index' %}">Администрирование сайта</a></h1>
+    <a href="{% url 'admin:visit_statistics' %}" style="margin-left: 20px; background: #417690; color: white; padding: 10px; text-decoration: none;">Статистика посещений</a>
+{% endblock %}

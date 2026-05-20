@@ -1,0 +1,21 @@
+[MASTER]
+load-plugins=pylint_django
+
+[MESSAGES CONTROL]
+disable=
+    C0103,  # invalid-name (переменные в стиле Django)
+    C0301,  # line-too-long (black сам следит за длиной)
+    C0111,  # missing-docstring (не нужно для всех методов)
+    W0613,  # unused-argument (особенно в Django views)
+    R0901,  # too-many-ancestors (часто в Django)
+    R0903,  # too-few-public-methods (для Django классов)
+    W0221,  # arguments-differ (в Django методах)
+    C0304,  # missing-final-newline (black сам добавляет)
+
+[FORMAT]
+max-line-length=88
+
+[BASIC]
+good-names=
+    i,j,k,ex,Run,_,
+    pk, id, qs,  # Django стандартные имена

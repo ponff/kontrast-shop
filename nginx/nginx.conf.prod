@@ -1,0 +1,66 @@
+# Перенаправление www → без www (HTTP и HTTPS)
+server {
+    listen 80;
+    listen 443 ssl;
+    server_name www.kontrast-shop.ru;
+
+    ssl_certificate /etc/letsencrypt/live/kontrast-shop.ru/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/kontrast-shop.ru/privkey.pem;
+
+    return 301 https://kontrast-shop.ru$request_uri;  # Принудительно на HTTPS
+}
+
+# Перенаправление HTTP → HTTPS (для izh-dev.ru)
+server {
+    listen 80;
+    server_name kontrast-shop.ru;
+
+    return 301 https://$host$request_uri;  # Редирект на HTTPS
+}
+
+# Основной сервер (работает только по HTTPS)
+server {
+    listen 443 ssl;
+    server_name kontrast-shop.ru;
+
+    ssl_certificate /etc/letsencrypt/live/kontrast-shop.ru/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/kontrast-shop.ru/privkey.pem;
+
+    client_max_body_size 10M;
+    client_body_timeout 60s;
+    client_header_timeout 60s;
+
+    location /staticfiles/ {
+        alias /staticfiles/;
+    }
+
+    location /swagger {
+        proxy_pass http://backend:8000;
+        proxy_cookie_path / /;
+    }
+
+    location /schema {
+        proxy_pass http://backend:8000;
+        proxy_cookie_path / /;
+    }
+
+    location /admin {
+        proxy_pass http://backend:8000;
+        proxy_cookie_path / /;
+    }
+
+    location /api {
+        proxy_pass http://backend:8000;
+        proxy_cookie_path / /;
+    }
+
+    location /media {
+        proxy_pass http://backend:8000;
+        proxy_cookie_path / /;
+    }
+
+    location / {
+        proxy_pass http://frontend:3000;
+        proxy_cookie_path / /;
+    }
+}

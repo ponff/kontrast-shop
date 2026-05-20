@@ -1,0 +1,9 @@
+{
+  "compilerOptions": {
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": ["src/**/*", "next-env.d.ts", "../CartProductQuickModal.jsx"],
+  "exclude": ["node_modules"]
+}
