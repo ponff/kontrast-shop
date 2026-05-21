@@ -4,10 +4,11 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 COPY package.json package-lock.json* yarn.lock* ./
-RUN npm ci --only=production && npm cache clean --force
+RUN npm ci && npm cache clean --force
 
 COPY . .
 RUN npm run build
+RUN npm prune --production
 
 # Production stage
 FROM node:20-alpine

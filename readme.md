@@ -47,7 +47,7 @@ sudo apt install -y git curl ca-certificates gnupg lsb-release software-properti
 sudo mkdir -p /srv/kontrast
 sudo chown "$USER":"$USER" /srv/kontrast
 cd /srv/kontrast
-git clone https://github.com/ponff/kontrast-main
+git clone https://github.com/ponff/kontrast-shop
 ```
 
 ### 4. Подготовка переменных окружения

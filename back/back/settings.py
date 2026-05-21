@@ -9,7 +9,7 @@ SECRET_KEY = os.environ.get(
 )
 
 # В продакшне явно задавайте DJANGO_DEBUG=False и создавайте безопасный секретный ключ
-DEBUG = os.environ.get("DJANGO_DEBUG", "False") == "True"
+DEBUG = os.environ.get("DJANGO_DEBUG", "True") == "True"
 
 # Ожидается: список хостов через запятую, например: "kontrast-shop.ru,127.0.0.1"
 _allowed = os.environ.get(
