@@ -1,7 +1,7 @@
 import axios from "axios";
 
 export const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || "https://contrast-shop.ru/api/",
+  baseURL: process.env.NEXT_PUBLIC_API_URL || "https://kontrast-shop.ru/api/",
 });
 
 // Улучшенная функция получения CSRF токена

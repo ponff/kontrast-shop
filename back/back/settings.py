@@ -60,6 +60,8 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:8000",
     "http://backend:8000",
     "http://nginx",
+    "https://kontrast-shop.ru",
+    "https://www.kontrast-shop.ru",
 ]
 
 CSRF_TRUSTED_ORIGINS = [
@@ -73,6 +75,8 @@ CSRF_TRUSTED_ORIGINS = [
     "http://127.0.0.1:8000",
     "http://backend:8000",
     "http://nginx",
+    "https://kontrast-shop.ru",
+    "https://www.kontrast-shop.ru",
 ]
 
 #CSRF_COOKIE_HTTPONLY = True
