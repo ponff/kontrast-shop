@@ -108,10 +108,22 @@ class Command(BaseCommand):
         for category_name, products in products_data.items():
             category = categories[category_name]
             for product_data in products:
+                # Дополнительные поля в модели: width, height, depth, weight, color, quantity
+                # Оставляем `name` и `description` без изменений
+                extra_fields = {
+                    'width': None,
+                    'height': None,
+                    'depth': None,
+                    'weight': None,
+                    'color': '-',  # по умолчанию не выбран
+                    'quantity': 10,  # задаем разумное начальное количество
+                }
+
                 product = Product.objects.create(
                     category=category,
                     image_directory=f"products/{product_counter}",
-                    **product_data
+                    **product_data,
+                    **extra_fields,
                 )
                 self.stdout.write(f'  ✓ Товар создан: {product.name} ({category_name}) → папка: products/{product_counter}')
                 product_counter += 1
