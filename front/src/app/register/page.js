@@ -22,6 +22,7 @@ export default function RegisterPage() {
   const [address, setAddress] = useState('')
   const [city, setCity] = useState('')
   const [postalCode, setPostalCode] = useState('')
+  const [formErrors, setFormErrors] = useState({})
 
   useEffect(() => {
     if (user) {
@@ -29,8 +30,44 @@ export default function RegisterPage() {
     }
   }, [user, router])
 
+  const validateForm = () => {
+    const errors = {}
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    const phoneRegex = /^\+?[\d\s()\-]{7,20}$/
+
+    if (!firstName.trim()) {
+      errors.firstName = 'Введите имя'
+    }
+    if (!lastName.trim()) {
+      errors.lastName = 'Введите фамилию'
+    }
+    if (!email.trim()) {
+      errors.email = 'Введите email'
+    } else if (!emailRegex.test(email)) {
+      errors.email = 'Введите корректный email'
+    }
+    if (!password) {
+      errors.password = 'Введите пароль'
+    } else if (password.length < 8) {
+      errors.password = 'Пароль должен содержать минимум 8 символов'
+    }
+    if (phone && !phoneRegex.test(phone)) {
+      errors.phone = 'Введите корректный телефон'
+    }
+    if (postalCode && postalCode.length > 20) {
+      errors.postalCode = 'Почтовый индекс слишком длинный'
+    }
+    setFormErrors(errors)
+    return Object.keys(errors).length === 0
+  }
+
   const handleSubmit = async event => {
     event.preventDefault()
+    if (!validateForm()) {
+      toast.error('Проверьте поля формы')
+      return
+    }
+
     try {
       await register({
         first_name: firstName,
@@ -67,6 +104,9 @@ export default function RegisterPage() {
                 placeholder='Иванов'
                 required
               />
+              {formErrors.lastName && (
+                <p className='text-sm text-red-600 mt-1'>{formErrors.lastName}</p>
+              )}
             </div>
             <div>
               <Label htmlFor='firstName'>Имя</Label>
@@ -77,6 +117,9 @@ export default function RegisterPage() {
                 placeholder='Иван'
                 required
               />
+              {formErrors.firstName && (
+                <p className='text-sm text-red-600 mt-1'>{formErrors.firstName}</p>
+              )}
             </div>
           </div>
 
@@ -99,6 +142,9 @@ export default function RegisterPage() {
                 onChange={e => setPhone(e.target.value)}
                 placeholder='+7 (999) 123-45-67'
               />
+              {formErrors.phone && (
+                <p className='text-sm text-red-600 mt-1'>{formErrors.phone}</p>
+              )}
             </div>
           </div>
 
@@ -113,6 +159,9 @@ export default function RegisterPage() {
                 placeholder='name@example.com'
                 required
               />
+              {formErrors.email && (
+                <p className='text-sm text-red-600 mt-1'>{formErrors.email}</p>
+              )}
             </div>
             <div>
               <Label htmlFor='password'>Пароль</Label>
@@ -124,6 +173,9 @@ export default function RegisterPage() {
                 placeholder='••••••••'
                 required
               />
+              {formErrors.password && (
+                <p className='text-sm text-red-600 mt-1'>{formErrors.password}</p>
+              )}
             </div>
           </div>
 
@@ -145,6 +197,9 @@ export default function RegisterPage() {
                 onChange={e => setPostalCode(e.target.value)}
                 placeholder='123456'
               />
+              {formErrors.postalCode && (
+                <p className='text-sm text-red-600 mt-1'>{formErrors.postalCode}</p>
+              )}
             </div>
           </div>
 

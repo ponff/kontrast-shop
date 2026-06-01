@@ -19,11 +19,16 @@ class Cart:
                 cart = self.session[settings.CART_SESSION_ID] = {}
             self.cart = cart
 
-    def add(self, product, quantity=1):
+    def add(self, product, quantity=1, color=None):
+        # Поддерживаем опцию выбора цвета (color)
+        if color is None and hasattr(self, 'request') and self.request is not None:
+            color = self.request.data.get('color') if hasattr(self.request, 'data') else None
+
         if self.user:
             cart_item, created = CartItem.objects.get_or_create(
                 user=self.user,
                 product=product,
+                color=color,
                 defaults={
                     "quantity": quantity,
                     "price": Decimal(str(product.price)),
@@ -35,35 +40,54 @@ class Cart:
             cart_item.save()
             return cart_item
 
-        product_id = str(product.id)
-        if product_id not in self.cart:
-            self.cart[product_id] = {
+        # Для сессии используем ключ product_id:color чтобы различать варианты
+        key = f"{product.id}:{color or ''}"
+        if key not in self.cart:
+            self.cart[key] = {
                 "quantity": quantity,
                 "price": float(product.price),
                 "product_name": product.name,
                 "product_id": product.id,
                 "self_price": float(product.self_price),
+                "color": color,
             }
         else:
-            self.cart[product_id]["quantity"] += quantity
+            self.cart[key]["quantity"] += quantity
         self.save()
 
     def save(self):
         self.session.modified = True
 
-    def remove(self, product):
+    def remove(self, product, color=None):
+        if color is None and hasattr(self, 'request') and self.request is not None:
+            color = self.request.data.get('color') if hasattr(self.request, 'data') else None
+
         if self.user:
-            CartItem.objects.filter(user=self.user, product=product).delete()
+            if color:
+                CartItem.objects.filter(user=self.user, product=product, color=color).delete()
+            else:
+                CartItem.objects.filter(user=self.user, product=product).delete()
             return
 
-        product_id = str(product.id)
-        if product_id in self.cart:
-            del self.cart[product_id]
-            self.save()
+        # сессия: ключи вида 'product_id:color'
+        if color is not None:
+            key = f"{product.id}:{color or ''}"
+            if key in self.cart:
+                del self.cart[key]
+                self.save()
+            return
 
-    def update(self, product, quantity):
+        keys_to_remove = [k for k in list(self.cart.keys()) if k.split(':')[0] == str(product.id)]
+        for k in keys_to_remove:
+            del self.cart[k]
+        self.save()
+
+    def update(self, product, quantity, color=None):
+        if color is None and hasattr(self, 'request') and self.request is not None:
+            color = self.request.data.get('color') if hasattr(self.request, 'data') else None
+
         if self.user:
-            cart_item = CartItem.objects.filter(user=self.user, product=product).first()
+            cart_item = CartItem.objects.filter(user=self.user, product=product, color=color).first()
             if not cart_item:
                 return None
             if quantity <= 0:
@@ -74,17 +98,20 @@ class Cart:
             cart_item.save()
             return cart_item
 
-        product_id = str(product.id)
-        if product_id in self.cart:
+        # сессия: используем ключ product_id:color
+        if color is None and hasattr(self, 'request') and self.request is not None:
+            color = self.request.data.get('color') if hasattr(self.request, 'data') else None
+        key = f"{product.id}:{color or ''}"
+        if key in self.cart:
             if quantity <= 0:
                 self.remove(product)
                 return None
 
-            self.cart[product_id]["quantity"] = quantity
-            self.cart[product_id]["total_price"] = product.price * quantity
+            self.cart[key]["quantity"] = quantity
+            self.cart[key]["total_price"] = product.price * quantity
             self.save()
 
-        return self.cart.get(product_id)
+        return self.cart.get(key)
 
     def clear(self):
         if self.user:
@@ -125,16 +152,21 @@ class Cart:
                     "total_price": cart_item.price * cart_item.quantity,
                     "product": cart_item.product,
                     "self_price": float(cart_item.product.self_price),
+                    "color": cart_item.color,
                 }
 
             return
 
-        product_ids = self.cart.keys()
-        products = Product.objects.filter(id__in=product_ids)
+        # В сессии ключи вида 'product_id:color'
         cart = self.cart.copy()
+        product_ids = list({k.split(':')[0] for k in cart.keys()})
+        products = Product.objects.filter(id__in=product_ids)
 
         for product in products:
-            cart[str(product.id)]["product"] = product
+            for key, item in cart.items():
+                pid, _sep, col = key.partition(':')
+                if str(product.id) == pid:
+                    item["product"] = product
 
         for item in cart.values():
             item["price"] = Decimal(str(item["price"]))
@@ -152,6 +184,7 @@ class Cart:
                     "self_price": float(item["self_price"]),
                     "price": float(item["price"]),
                     "total_price": float(item["total_price"]),
+                    "color": item.get("color"),
                 }
             )
         return orders_list
@@ -162,10 +195,14 @@ class Cart:
 
         session_cart = self.session.get(settings.CART_SESSION_ID, {})
         for product_id, item in session_cart.items():
+            # ключ product_id может быть 'id:color'
+            pid, _sep, col = product_id.partition(':')
             try:
-                product = Product.objects.get(id=product_id)
+                product = Product.objects.get(id=pid)
             except Product.DoesNotExist:
                 continue
+            # передаем цвет в запрос-поля временно
+            # В методе add он будет прочитан из self.request.data, поэтому передадим color через параметр
             self.add(product, item.get("quantity", 0))
 
         if settings.CART_SESSION_ID in self.session:

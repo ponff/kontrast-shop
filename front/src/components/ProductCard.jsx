@@ -1,12 +1,10 @@
 'use client'
 import { useState, useRef, useEffect } from 'react'
-import Image from 'next/image'
+import { useRouter } from 'next/navigation'
 import { ShoppingCart, Minus, Plus, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useCartStore } from '@/store/cartStore'
-import ProductQuickViewModal from './ProductQuickViewModal'
 
 export default function ProductCard({ product }) {
-  const [isQuickViewOpen, setIsQuickViewOpen] = useState(false)
   const [addingToCart, setAddingToCart] = useState(false)
   const [imageError, setImageError] = useState(false)
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
@@ -17,11 +15,13 @@ export default function ProductCard({ product }) {
   const touchThreshold = 50 // минимальное расстояние для свайпа
   const autoSlideInterval = 3000 // интервал автопрокрутки в мс
   const autoSlideRef = useRef(null)
+  const router = useRouter()
 
   const addItem = useCartStore(state => state.addItem)
   const removeItem = useCartStore(state => state.removeItem)
   const updateQuantity = useCartStore(state => state.updateQuantity)
   const isInCart = useCartStore(state => state.isInCart(product.id))
+  const inStock = product.quantity == null || product.quantity > 0
 
   const cartItems = useCartStore(state => state.items)
   const cartItem = cartItems.find(item => item.id === product.id)
@@ -106,6 +106,11 @@ export default function ProductCard({ product }) {
 
   const handleAddToCart = async e => {
     e.stopPropagation()
+    if (!inStock) {
+      alert('Товар отсутствует на складе')
+      return
+    }
+
     setAddingToCart(true)
     try {
       await addItem(product)
@@ -145,7 +150,7 @@ export default function ProductCard({ product }) {
   }
 
   const handleCardClick = () => {
-    setIsQuickViewOpen(true)
+    router.push(`/product/${product.id}`)
   }
 
   return (
@@ -268,20 +273,29 @@ export default function ProductCard({ product }) {
           </div>
 
           <div className='space-y-1.5 xs:space-y-2 sm:space-y-2.5 md:space-y-3 mt-auto'>
-            <div className='flex justify-end'>
+            <div className='flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1'>
               <div
                 className='text-sm xs:text-[15px] sm:text-[16px] md:text-[17px] font-bold text-black leading-4 xs:leading-5 sm:leading-5'
                 style={{ fontFamily: 'Arial, sans-serif' }}>
                 {product.price}
+              </div>
+              <div className={`text-xs xs:text-[12px] sm:text-[13px] ${inStock ? 'text-green-700' : 'text-red-600'} font-medium`}>
+                {product.quantity == null
+                  ? 'В наличии'
+                  : product.quantity > 0
+                  ? `В наличии: ${product.quantity}`
+                  : 'Нет в наличии'}
               </div>
             </div>
 
             {!isInCart ? (
               <button
                 onClick={handleAddToCart}
-                disabled={addingToCart}
+                disabled={addingToCart || !inStock}
                 className={`w-full px-2 xs:px-2.5 sm:px-3 md:px-4 py-1.5 xs:py-2 sm:py-2 md:py-2.5 rounded-md flex items-center justify-center gap-1 xs:gap-1.5 sm:gap-2 transition-colors tracking-wider ${
-                  addingToCart
+                  !inStock
+                    ? 'bg-gray-300 cursor-not-allowed text-gray-700'
+                    : addingToCart
                     ? 'bg-gray-400 cursor-not-allowed'
                     : 'bg-[#4A382B] hover:bg-[#4A382B]/90'
                 } text-white text-xs xs:text-xs sm:text-sm`}>
@@ -290,7 +304,7 @@ export default function ProductCard({ product }) {
                   strokeWidth={2.55}
                 />
                 <span className='text-base xs:text-lg sm:text-xl md:text-[23px] font-bebas leading-3 xs:leading-4 sm:leading-4'>
-                  {addingToCart ? '...' : 'В корзину'}
+                  {addingToCart ? '...' : inStock ? 'В корзину' : 'Нет в наличии'}
                 </span>
               </button>
             ) : (
@@ -325,12 +339,6 @@ export default function ProductCard({ product }) {
           </div>
         </div>
       </div>
-
-      <ProductQuickViewModal
-        product={product}
-        open={isQuickViewOpen}
-        onOpenChange={setIsQuickViewOpen}
-      />
     </>
   )
 }

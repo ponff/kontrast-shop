@@ -2,7 +2,9 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { useState } from 'react'
 import { useUserStore } from '@/store/userStore'
+import { orderAPI } from '@/lib/api'
 import { Button } from '@/components/ui'
 import { toast } from 'sonner'
 
@@ -11,6 +13,23 @@ export default function ProfilePage() {
   const loading = useUserStore(state => state.loading)
   const logout = useUserStore(state => state.logout)
   const router = useRouter()
+  const [payingOrderId, setPayingOrderId] = useState(null)
+
+  const handlePayOrder = async (orderId) => {
+    try {
+      setPayingOrderId(orderId)
+      const response = await orderAPI.createOrderPayment(orderId)
+      const paymentUrl = response.data?.payment_url
+      if (!paymentUrl) {
+        throw new Error('Не удалось получить ссылку на оплату.')
+      }
+      window.location.href = paymentUrl
+    } catch (err) {
+      toast.error(err.response?.data?.error || err.message || 'Ошибка при создании платежа')
+    } finally {
+      setPayingOrderId(null)
+    }
+  }
 
   if (loading) {
     return (
@@ -121,10 +140,43 @@ export default function ProfilePage() {
                     <p className='text-base text-black'>Сумма: {order.summary_price} ₽</p>
                   </div>
                   <div className='mt-4 grid gap-2'>
+                    <p className='text-sm text-[#4A382B]'>Статус: {order.status || (order.is_paid ? 'Оплачен' : 'Не оплачен')}</p>
+                    <p className='text-sm text-[#4A382B]'>Способ доставки: {order.delivery_method === 'cdek' ? 'СДЭК' : order.delivery_method === 'yandex' ? 'Яндекс.Доставка' : order.delivery_method === 'russian_post' ? 'Почта России' : 'Курьер'}</p>
                     <p className='text-sm text-[#4A382B]'>Дата заказа: {order.order_date}</p>
                     <p className='text-sm text-[#4A382B]'>Телефон: {order.phone}</p>
                     <p className='text-sm text-[#4A382B]'>Адрес: {order.address}</p>
                   </div>
+
+                  {order.pickup_code && (
+                    <div className='mt-4 rounded-xl border border-[#C6A884] bg-[#F7F3EE] p-4'>
+                      <p className='text-sm xs:text-base font-bold text-black mb-3'>Код получения</p>
+                      <div className='grid gap-3 sm:grid-cols-[1fr_auto] items-center'>
+                        <div>
+                          <p className='text-xl font-bold text-black tracking-[0.12em]'>{order.pickup_code}</p>
+                          <p className='text-sm text-[#4A382B] mt-1'>Код обновляется каждый день.</p>
+                        </div>
+                        <img
+                          src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(order.pickup_code)}`}
+                          alt='QR-код для получения заказа'
+                          className='w-24 h-24 rounded-lg border border-[#C6A884] bg-white'
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {!order.is_paid && (
+                    <div className='mt-4 flex flex-col gap-2'>
+                      <p className='text-sm text-[#4A382B]'>Заказ не оплачен. Вы можете оплатить его через YooKassa.</p>
+                      <button
+                        type='button'
+                        disabled={payingOrderId === order.id}
+                        onClick={() => handlePayOrder(order.id)}
+                        className='w-full inline-flex items-center justify-center rounded-md border border-[#C6A884] bg-[#4A382B] px-3 py-2 text-sm font-bold text-white hover:bg-[#4A382B]/90 disabled:opacity-50'
+                      >
+                        {payingOrderId === order.id ? 'Переадресация...' : 'Оплатить заказ'}
+                      </button>
+                    </div>
+                  )}
 
                   {Array.isArray(order.orders_list) && order.orders_list.length > 0 && (
                     <div className='mt-4 rounded-xl border border-[#C6A884] bg-[#FBF7EE] p-4'>

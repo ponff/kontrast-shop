@@ -39,8 +39,36 @@ class ProductResource(resources.ModelResource):
 class OrderResource(resources.ModelResource):
     class Meta:
         model = Order
-        fields = ("id", "full_name", "phone", "mail", "address", "order_date", "summary_price", "is_approve", "is_paid")
-        export_order = ("id", "full_name", "phone", "mail", "address", "order_date", "summary_price", "is_approve", "is_paid")
+        fields = (
+            "id",
+            "full_name",
+            "phone",
+            "mail",
+            "address",
+            "delivery_method",
+            "status",
+            "pickup_code",
+            "pickup_code_generated_at",
+            "order_date",
+            "summary_price",
+            "is_approve",
+            "is_paid",
+        )
+        export_order = (
+            "id",
+            "full_name",
+            "phone",
+            "mail",
+            "address",
+            "delivery_method",
+            "status",
+            "pickup_code",
+            "pickup_code_generated_at",
+            "order_date",
+            "summary_price",
+            "is_approve",
+            "is_paid",
+        )
 
 
 class CustomOrderResource(resources.ModelResource):
@@ -137,10 +165,10 @@ class ProductAdmin(ImportExportModelAdmin, ModelAdmin):
 @admin.register(Order)
 class OrderAdmin(ImportExportModelAdmin):
     resource_class = OrderResource
-    list_display = ["id", "is_approve", "is_paid", "full_name", "order_date", "summary_price"]  
-    readonly_fields = ["order_date", "orders_list", "summary_price"]
-    list_filter = ["order_date", "is_approve", "is_paid"]  
-    list_editable = ["is_approve", "is_paid"]  
+    list_display = ["id", "status", "delivery_method", "is_approve", "is_paid", "full_name", "order_date", "summary_price"]
+    readonly_fields = ["order_date", "orders_list", "summary_price", "pickup_code", "pickup_code_generated_at"]
+    list_filter = ["order_date", "status", "delivery_method", "is_approve", "is_paid"]
+    list_editable = ["status", "delivery_method", "is_approve", "is_paid"]
 
 
 @admin.register(UserProfile)

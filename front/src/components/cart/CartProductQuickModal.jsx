@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import * as Dialog from '@radix-ui/react-dialog'
 import { useCartStore } from '@/store/cartStore'
@@ -9,7 +9,32 @@ import { Minus, Plus, ShoppingCart, X } from 'lucide-react'
 export default function ProductQuickViewModal({ product, open, onOpenChange }) {
   const [quantity, setQuantity] = useState(1)
   const [imageError, setImageError] = useState(false)
+  const [currentImageIndex, setCurrentImageIndex] = useState(0)
+  const [selectedColor, setSelectedColor] = useState(null)
   const addItem = useCartStore(state => state.addItem)
+
+  const hasMultipleImages = product?.images && product.images.length > 1
+  const currentImage = product?.images?.[currentImageIndex] || null
+
+  useEffect(() => {
+    setCurrentImageIndex(0)
+    setImageError(false)
+    setSelectedColor(product?.color && product.color !== '-' ? product.color : (product?.available_colors?.[0] || null))
+  }, [product?.id])
+
+  const nextImage = () => {
+    if (!hasMultipleImages) return
+    setCurrentImageIndex((prevIndex) =>
+      prevIndex === product.images.length - 1 ? 0 : prevIndex + 1
+    )
+  }
+
+  const prevImage = () => {
+    if (!hasMultipleImages) return
+    setCurrentImageIndex((prevIndex) =>
+      prevIndex === 0 ? product.images.length - 1 : prevIndex - 1
+    )
+  }
 
   const handleOpenChange = isOpen => {
     if (isOpen && product) {
@@ -24,10 +49,8 @@ export default function ProductQuickViewModal({ product, open, onOpenChange }) {
   const unitPrice = parseRub(product.price)
   const totalPrice = unitPrice * quantity
 
-  const handleAddToCart = () => {
-    for (let i = 0; i < quantity; i++) {
-      addItem(product)
-    }
+  const handleAddToCart = async () => {
+    await addItem(product, quantity, selectedColor)
     onOpenChange(false)
   }
 
@@ -64,18 +87,37 @@ export default function ProductQuickViewModal({ product, open, onOpenChange }) {
 
           <div className='grid grid-cols-1 lg:grid-cols-2 gap-3 xs:gap-4 sm:gap-4 md:gap-5 lg:gap-6'>
             {/* изображение товара - больше breakpoints */}
-            <div className='rounded-lg xs:rounded-xl sm:rounded-xl md:rounded-2xl h-40 xs:h-48 sm:h-56 md:h-64 lg:h-72 xl:h-80 border border-brand-border bg-gray-100 overflow-hidden'>
-              {product.images && product.images.length > 0 && !imageError ? (
-                <Image
-                  src={product.images[0]}
-                  alt={product.name}
-                  className='w-full h-full object-cover'
-                  onError={handleImageError}
-                  onLoad={handleImageLoad}
-                  width={400}
-                  height={400}
-                  priority
-                />
+            <div className='relative rounded-lg xs:rounded-xl sm:rounded-xl md:rounded-2xl h-40 xs:h-48 sm:h-56 md:h-64 lg:h-72 xl:h-80 border border-brand-border bg-gray-100 overflow-hidden'>
+              {currentImage && !imageError ? (
+                <>
+                  <Image
+                    src={currentImage}
+                    alt={product.name}
+                    className='w-full h-full object-cover'
+                    onError={handleImageError}
+                    onLoad={handleImageLoad}
+                    width={400}
+                    height={400}
+                    priority
+                  />
+
+                  {hasMultipleImages && (
+                    <>
+                      <button
+                        type='button'
+                        onClick={prevImage}
+                        className='absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-black/50 text-white p-2 transition-colors hover:bg-black/70'>
+                        &#8249;
+                      </button>
+                      <button
+                        type='button'
+                        onClick={nextImage}
+                        className='absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-black/50 text-white p-2 transition-colors hover:bg-black/70'>
+                        &#8250;
+                      </button>
+                    </>
+                  )}
+                </>
               ) : (
                 <div
                   className='w-full h-full flex items-center justify-center'
@@ -84,6 +126,28 @@ export default function ProductQuickViewModal({ product, open, onOpenChange }) {
                 </div>
               )}
             </div>
+
+            {hasMultipleImages && (
+              <div className='flex gap-2 overflow-x-auto py-2'>
+                {product.images.map((image, index) => (
+                  <button
+                    key={image || index}
+                    type='button'
+                    onClick={() => setCurrentImageIndex(index)}
+                    className={`flex-shrink-0 w-16 h-16 rounded-xl overflow-hidden border ${
+                      index === currentImageIndex ? 'border-[#4A382B]' : 'border-gray-200'
+                    }`}>
+                    <Image
+                      src={image}
+                      alt={`${product.name} ${index + 1}`}
+                      width={64}
+                      height={64}
+                      className='object-cover w-full h-full'
+                    />
+                  </button>
+                ))}
+              </div>
+            )}
 
             {/* информация о товаре - больше breakpoints */}
             <div className='space-y-2 xs:space-y-3 sm:space-y-3 md:space-y-4'>
@@ -117,6 +181,22 @@ export default function ProductQuickViewModal({ product, open, onOpenChange }) {
 
               {/* управление количеством - больше breakpoints */}
               <div className='flex flex-col items-start space-y-2 xs:space-y-3 sm:space-y-3'>
+                {product.available_colors && product.available_colors.length > 0 && (
+                  <div className='w-full mb-2'>
+                    <div className='text-sm text-[#4A382B] mb-2'>Выберите цвет</div>
+                    <div className='flex flex-wrap gap-2'>
+                      {product.available_colors.map((c) => (
+                        <button
+                          key={c}
+                          type='button'
+                          onClick={() => setSelectedColor(c)}
+                          className={`px-3 py-1 rounded-full border ${selectedColor === c ? 'border-[#4A382B] bg-[#4A382B] text-white' : 'border-gray-200'}`}>
+                          {c}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 <div className='flex items-center gap-1.5 xs:gap-2 sm:gap-2 md:gap-3 ml-2 xs:ml-3 sm:ml-4'>
                   <button
                     onClick={() => setQuantity(q => Math.max(1, q - 1))}

@@ -26,6 +26,7 @@ export const useCartStore = create((set, get) => ({
               total_price: parseFloat(item.total_price),
               images: [],
               description: '',
+              color: item.color || null,
             })) || []
 
           // Загружаем полную информацию о каждом товаре
@@ -38,6 +39,7 @@ export const useCartStore = create((set, get) => ({
                   ...item,
                   images: productInfo.data?.images || [],
                   description: productInfo.data?.description || '',
+                  available_colors: productInfo.data?.available_colors || [],
                 }
               } catch (error) {
                 return item
@@ -65,7 +67,7 @@ export const useCartStore = create((set, get) => ({
       },
 
       // Добавить товар в корзину
-      addItem: async (product, quantity = 1) => {
+      addItem: async (product, quantity = 1, color = null) => {
         // Если пользователь не авторизован — перенаправляем на страницу входа/регистрации
         const currentUser = useUserStore.getState().user
         if (!currentUser) {
@@ -78,7 +80,7 @@ export const useCartStore = create((set, get) => ({
 
         set({ loading: true, error: null })
         try {
-          await cartApi.add(product.id, quantity)
+          await cartApi.add(product.id, quantity, color)
           await get().fetchCart()
         } catch (error) {
           const errorMsg = error.response?.data?.error || error.message
@@ -87,10 +89,10 @@ export const useCartStore = create((set, get) => ({
         }
       },
 
-      removeItem: async productId => {
+      removeItem: async (productId, color = null) => {
         set({ loading: true, error: null })
         try {
-          await cartApi.remove(productId)
+          await cartApi.remove(productId, color)
           await get().fetchCart()
         } catch (error) {
           const errorMsg = error.response?.data?.error || error.message
@@ -99,15 +101,15 @@ export const useCartStore = create((set, get) => ({
         }
       },
 
-      updateQuantity: async (productId, quantity) => {
+      updateQuantity: async (productId, quantity, color = null) => {
         if (quantity <= 0) {
-          await get().removeItem(productId)
+          await get().removeItem(productId, color)
           return
         }
 
         set({ loading: true, error: null })
         try {
-          await cartApi.update(productId, quantity)
+          await cartApi.update(productId, quantity, color)
           await get().fetchCart()
         } catch (error) {
           const errorMsg = error.response?.data?.error || error.message

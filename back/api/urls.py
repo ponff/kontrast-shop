@@ -22,6 +22,8 @@ urlpatterns = [
     path("cart/clear/", views.CartClearView.as_view(), name="cart-clear"),
     path("cart/detail/", views.CartDetailView.as_view(), name="cart-detail"),
     path("orders/create/", views.CreateOrderView.as_view(), name="create-order"),
+    path("orders/<int:order_id>/payment/create/", views.CreateYooKassaPaymentView.as_view(), name="create-order-payment"),
+    path("orders/payment/webhook/", views.YooKassaWebhookView.as_view(), name="yookassa-webhook"),
     path(
         "orders/create-custom/",
         views.CreateCustomOrderView.as_view(),
