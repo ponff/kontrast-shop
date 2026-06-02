@@ -28,6 +28,9 @@ services:
     build:
       context: ./front
     restart: unless-stopped
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
     # Фронтенд также доступен через nginx, не выставляем порты хоста.
     depends_on:
       - backend
