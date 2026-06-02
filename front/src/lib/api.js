@@ -73,15 +73,16 @@ export const productAPI = {
 };
 
 export const cartApi = {
-  add: (productId, quantity = 1) => api.post(`/cart/add/${productId}/`, { quantity }),
-  remove: (productId) => api.post(`/cart/remove/${productId}/`),
-  update: (productId, quantity) => api.post(`/cart/update/${productId}/`, { quantity }),
+  add: (productId, quantity = 1, color = null) => api.post(`/cart/add/${productId}/`, { quantity, color }),
+  remove: (productId, color = null) => api.post(`/cart/remove/${productId}/`, { color }),
+  update: (productId, quantity, color = null) => api.post(`/cart/update/${productId}/`, { quantity, color }),
   clear: () => api.post("/cart/clear/"),
   detail: () => api.get("/cart/detail/"),
 };
 
 export const orderAPI = {
   createOrder: (data) => api.post("/orders/create/", data),
+  createOrderPayment: (orderId, data = {}) => api.post(`/orders/${orderId}/payment/create/`, data),
   createCustomOrder: (data) => api.post("/orders/create-custom/", data),
 };
 

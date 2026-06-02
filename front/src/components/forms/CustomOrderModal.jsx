@@ -11,6 +11,8 @@ import { X } from 'lucide-react'
 
 export default function CustomOrderModal({ trigger, cartItems = [] }) {
   const [open, setOpen] = useState(false)
+  const [addressMode, setAddressMode] = useState('profile')
+  const [otherAddress, setOtherAddress] = useState('')
   const { mutate: submitOrder, isPending: isSubmitting } = useOrderForm()
   const user = useUserStore(state => state.user)
   
@@ -39,6 +41,7 @@ export default function CustomOrderModal({ trigger, cartItems = [] }) {
         phone: formData.get('phone'),
         mail: formData.get('mail') || '',
         address: formData.get('address'),
+        delivery_method: formData.get('delivery_method') || 'courier',
         comment: `Заказ из корзины. Товары: ${cartItems.map(item => item.name).join(', ')}\n\nКомментарий: ${formData.get('comment') || 'Нет комментария'}`,
       }
 
@@ -62,11 +65,14 @@ export default function CustomOrderModal({ trigger, cartItems = [] }) {
     // Если пользователь авторизован, берем данные из профиля
     const formData = new FormData(e.target)
     
+    const selectedAddress = addressMode === 'other' ? otherAddress.trim() : profileData.address
+
     const orderData = {
       full_name: profileData.full_name,
       phone: profileData.phone,
       mail: profileData.mail,
-      address: profileData.address,
+      address: selectedAddress,
+      delivery_method: formData.get('delivery_method') || 'courier',
       comment: `Заказ из корзины. Товары: ${cartItems.map(item => item.name).join(', ')}\n\nКомментарий: ${formData.get('comment') || 'Нет комментария'}`,
     }
 
@@ -135,12 +141,81 @@ export default function CustomOrderModal({ trigger, cartItems = [] }) {
                 <input type='hidden' name='mail' value={profileData.mail || ''} />
                 <input type='hidden' name='address' value={profileData.address || ''} />
               </div>
+
+              <div className='rounded-lg border border-[#C6A884] bg-[#F7F3EA] p-4 space-y-3'>
+                <p className='text-sm xs:text-base font-bengaly text-[#4A382B]'>Адрес доставки</p>
+                <div className='space-y-2'>
+                  <label className='flex items-center gap-2'>
+                    <input
+                      type='radio'
+                      name='address_choice'
+                      value='profile'
+                      checked={addressMode === 'profile'}
+                      onChange={() => setAddressMode('profile')}
+                      className='form-radio text-[#4A382B]'
+                    />
+                    <span>Адрес из профиля</span>
+                  </label>
+                  <label className='flex items-center gap-2'>
+                    <input
+                      type='radio'
+                      name='address_choice'
+                      value='other'
+                      checked={addressMode === 'other'}
+                      onChange={() => setAddressMode('other')}
+                      className='form-radio text-[#4A382B]'
+                    />
+                    <span>Другой адрес</span>
+                  </label>
+                </div>
+                {addressMode === 'other' && (
+                  <div className='space-y-2'>
+                    <label className='block text-sm text-[#4A382B]'>Другой адрес</label>
+                    <textarea
+                      name='address'
+                      value={otherAddress}
+                      onChange={(e) => setOtherAddress(e.target.value)}
+                      placeholder='Город, улица, дом, квартира'
+                      className='w-full rounded-lg border border-[#C6A884] p-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#C6A884]'
+                      rows={3}
+                      required
+                    />
+                  </div>
+                )}
+
+                <div className='space-y-2'>
+                  <label className='block text-sm text-[#4A382B]'>Способ доставки</label>
+                  <select
+                    name='delivery_method'
+                    defaultValue='courier'
+                    className='w-full rounded-lg border border-[#C6A884] p-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#C6A884]'
+                  >
+                    <option value='cdek'>СДЭК</option>
+                    <option value='yandex'>Яндекс.Доставка</option>
+                    <option value='courier'>Курьер</option>
+                    <option value='russian_post'>Почта России</option>
+                  </select>
+                </div>
+              </div>
             ) : (
               <>
                 <FormField id='full_name' label='ФИО' required placeholder='Иванов Иван Иванович' />
                 <FormField id='phone' label='Телефон' required placeholder='+7 (___) ___-__-__' />
                 <FormField id='mail' label='Почта' type='email' placeholder='name@example.com' />
                 <FormField id='address' label='Адрес доставки' required placeholder='Город, улица, дом, квартира' />
+                <div className='space-y-2'>
+                  <label className='block text-sm text-[#4A382B]'>Способ доставки</label>
+                  <select
+                    name='delivery_method'
+                    defaultValue='courier'
+                    className='w-full rounded-lg border border-[#C6A884] p-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#C6A884]'
+                  >
+                    <option value='cdek'>СДЭК</option>
+                    <option value='yandex'>Яндекс.Доставка</option>
+                    <option value='courier'>Курьер</option>
+                    <option value='russian_post'>Почта России</option>
+                  </select>
+                </div>
               </>
             )}
 

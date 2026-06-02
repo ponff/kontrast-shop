@@ -1,6 +1,10 @@
 import os
 from decimal import Decimal, ROUND_HALF_UP
 
+import os
+import random
+from decimal import Decimal, ROUND_HALF_UP
+
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.files.base import ContentFile
@@ -8,8 +12,54 @@ from django.core.files.storage import default_storage
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models
 from django.forms import ValidationError
+from django.utils import timezone
 from django.utils.safestring import mark_safe
 
+COLOR_CHOICES = [
+    ('Черный', 'Черный'),
+    ('Белый', 'Белый'),
+    ('Коричневый', 'Коричневый'),
+    ('Темно-коричневый', 'Темно-коричневый'),
+    ('Бежевый', 'Бежевый'),
+    ('Карамель', 'Карамель'),
+    ('Бордовый', 'Бордовый'),
+    ('Вишневый', 'Вишневый'),
+    ('Красный', 'Красный'),
+    ('Синий', 'Синий'),
+    ('Темно-синий', 'Темно-синий'),
+    ('Серый', 'Серый'),
+    ('Антрацит', 'Антрацит'),
+    ('Оливковый', 'Оливковый'),
+    ('Хаки', 'Хаки'),
+    ('Зеленый', 'Зеленый'),
+    ('Желтый', 'Желтый'),
+    ('Оранжевый', 'Оранжевый'),
+    ('Розовый', 'Розовый'),
+    ('Фиолетовый', 'Фиолетовый'),
+    ('Песочный', 'Песочный'),
+    ('Коньячный', 'Коньячный'),
+    ('Терракотовый', 'Терракотовый'),
+    ('-', 'Не выбран'),
+]
+
+STATUS_CHOICES = [
+    ('-', 'Новый'),
+    ('pending_payment', 'Ожидает оплаты'),
+    ('paid', 'Оплачен'),
+    ('processing', 'В обработке'),
+    ('shipped', 'Отправлен'),
+    ('in_transit', 'В пути'),
+    ('ready_for_pickup', 'Готов к выдаче'),
+    ('delivered', 'Доставлен'),
+    ('cancelled', 'Отменен'),
+]
+
+DELIVERY_METHOD_CHOICES = [
+    ('cdek', 'СДЭК'),
+    ('yandex', 'Яндекс.Доставка'),
+    ('courier', 'Курьер'),
+    ('russian_post', 'Почта России'),
+]
 
 class Category(models.Model):
     name = models.CharField(max_length=255, unique=True, verbose_name="Название категории")
@@ -31,7 +81,13 @@ class Product(models.Model):
     name = models.CharField(max_length=255, verbose_name="Название")
     description = models.TextField(verbose_name="Описание", blank=True)
     category = models.ForeignKey(Category, on_delete=models.PROTECT, verbose_name="Категория", null=True, blank=True)
-
+    
+    width = models.FloatField(verbose_name="Ширина (см)", null=True, blank=True)
+    height = models.FloatField(verbose_name="Высота (см)", null=True, blank=True)
+    depth = models.FloatField(verbose_name="Глубина (см)", null=True, blank=True)
+    weight = models.FloatField(verbose_name="Вес (кг)", null=True, blank=True)
+    color = models.CharField(max_length=100, verbose_name="Цвет", blank=True, choices=COLOR_CHOICES, default='-')
+    
     image_directory = models.CharField(
         max_length=255,
         verbose_name="Папка с фото",
@@ -42,6 +98,11 @@ class Product(models.Model):
     self_price = models.FloatField(default=0.00, verbose_name="Себестоимость")
     price = models.FloatField(
         default=0.00, verbose_name="Цена с наценкой", editable=False
+    )
+    quantity = models.PositiveIntegerField(
+        default=0,
+        verbose_name="Количество на складе",
+        help_text="Доступное количество товара для продажи",
     )
 
     class Meta:
@@ -67,7 +128,7 @@ class Product(models.Model):
     @property
     def images(self):
         if self.image_directory:
-            return PublicMedia.objects.filter(target_dir=self.image_directory)
+            return PublicMedia.objects.filter(target_dir=self.image_directory).order_by('file')
         return PublicMedia.objects.none()  # Возвращаем QuerySet, а не список
 
     def image_preview(self):
@@ -97,13 +158,41 @@ class Order(models.Model):
         max_digits=10, decimal_places=2, verbose_name="Общая стоимость"
     )
     comment = models.TextField(verbose_name="Комментарий", blank=True)
-    is_approve = models.BooleanField(verbose_name="Проверен", default=False)  # Исправлено
-    is_paid = models.BooleanField(verbose_name="Оплачено", default=False)  # Добавлено
+    status = models.CharField(
+        max_length=50,
+        choices=STATUS_CHOICES,
+        default='-',
+        verbose_name="Статус",
+    )
+    delivery_method = models.CharField(
+        max_length=50,
+        choices=DELIVERY_METHOD_CHOICES,
+        default='courier',
+        verbose_name="Способ доставки",
+    )
+    pickup_code = models.CharField(
+        max_length=6,
+        blank=True,
+        verbose_name="Код получения",
+    )
+    pickup_code_generated_at = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name="Дата генерации кода",
+    )
+    is_approve = models.BooleanField(default=False, verbose_name="Проверен")
+    is_paid = models.BooleanField(default=False, verbose_name="Оплачено")
+    yookassa_payment_id = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        verbose_name="ID платежа ЮKassa",
+    )
 
     class Meta:
         verbose_name = "Заказ"
         verbose_name_plural = "Заказы"
-        ordering = ["-order_date", "-is_approve"]  # Исправлено
+        ordering = ["-order_date", "-status"]
 
     user = models.ForeignKey(
         User,
@@ -116,6 +205,23 @@ class Order(models.Model):
 
     def __str__(self):
         return f"Заказ #{self.id} - {self.full_name}"
+
+    def _generate_pickup_code(self):
+        return ''.join(random.choices('0123456789', k=6))
+
+    def save(self, *args, **kwargs):
+        today = timezone.localdate()
+        if self.pickup_code_generated_at != today or not self.pickup_code:
+            self.pickup_code = self._generate_pickup_code()
+            self.pickup_code_generated_at = today
+        super().save(*args, **kwargs)
+
+    def refresh_pickup_code(self):
+        today = timezone.localdate()
+        if self.pickup_code_generated_at != today or not self.pickup_code:
+            self.pickup_code = self._generate_pickup_code()
+            self.pickup_code_generated_at = today
+            self.save(update_fields=['pickup_code', 'pickup_code_generated_at'])
 
 
 class CustomOrder(models.Model):
@@ -132,8 +238,7 @@ class CustomOrder(models.Model):
     mail = models.EmailField(verbose_name="Email")
     order_date = models.DateTimeField(auto_now_add=True, verbose_name="Дата заказа")
     comment = models.TextField(verbose_name="Комментарий", blank=True)
-    is_approve = models.BooleanField(verbose_name="Проверен", default=False)  # Исправлено
-    is_paid = models.BooleanField(verbose_name="Оплачено", default=False)  # Добавлено
+    color = models.CharField(max_length=100, verbose_name="Цвет", blank=True, choices=COLOR_CHOICES, default='-')
 
     class Meta:
         verbose_name = "Индивидуальный заказ"
@@ -195,13 +300,14 @@ class CartItem(models.Model):
         decimal_places=2,
         verbose_name="Цена на момент добавления",
     )
+    color = models.CharField(max_length=100, blank=True, null=True, verbose_name="Выбранный цвет")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Добавлен")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Обновлён")
 
     class Meta:
         verbose_name = "Элемент корзины"
         verbose_name_plural = "Элементы корзин"
-        unique_together = ("user", "product")
+        unique_together = ("user", "product", "color")
 
     def __str__(self):
         return f"{self.product.name} x {self.quantity} ({self.user or 'Гость'})"

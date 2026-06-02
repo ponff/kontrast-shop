@@ -1,4 +1,7 @@
+import os
+
 from django.contrib.auth import get_user_model
+from django.conf import settings
 from rest_framework import serializers
 from .models import Product, Order, CustomOrder, PublicMedia, TelegramUser, Category, UserProfile
 from api.cart import Cart
@@ -90,6 +93,8 @@ class ProductSerializer(serializers.ModelSerializer):
     price = serializers.ReadOnlyField()
     category = CategorySerializer(read_only=True)
     category_id = serializers.IntegerField(write_only=True, required=False, allow_null=True)
+    color = serializers.CharField(read_only=True)
+    available_colors = serializers.SerializerMethodField()
 
     class Meta:
         model = Product
@@ -102,20 +107,46 @@ class ProductSerializer(serializers.ModelSerializer):
             "image_directory",
             "self_price",
             "price",
+            "quantity",
             "image_preview",
-            "images",  
+            "images",
+            "color",
+            "available_colors",
         ]
-        read_only_fields = ["price"]
+        read_only_fields = ["price", "quantity"]
 
     def get_images(self, obj):
         """Возвращает список URL изображений для товара"""
-        if obj.image_directory:
-            images = PublicMedia.objects.filter(target_dir=obj.image_directory)
-            return [img.file.url for img in images]
-        return []
+        if not obj.image_directory:
+            return []
+
+        images = PublicMedia.objects.filter(target_dir=obj.image_directory).order_by('file')
+        urls = [img.file.url for img in images]
+
+        safe_dir = obj.image_directory.strip("/")
+        media_root = os.path.join(settings.MEDIA_ROOT, safe_dir)
+        if os.path.isdir(media_root):
+            allowed_extensions = {'.jpg', '.jpeg', '.png', '.webp', '.gif', '.avif', '.svg'}
+            files = sorted(
+                [name for name in os.listdir(media_root)
+                 if os.path.splitext(name)[1].lower() in allowed_extensions]
+            )
+            folder_urls = [f"{settings.MEDIA_URL.rstrip('/')}/{safe_dir}/{name}" for name in files]
+            for url in folder_urls:
+                if url not in urls:
+                    urls.append(url)
+
+        return urls
 
     def get_image_preview(self, obj):
         return obj.image_preview()
+
+    def get_available_colors(self, obj):
+        try:
+            from .models import COLOR_CHOICES
+            return [c[0] for c in COLOR_CHOICES if c[0] and c[0] != '-']
+        except Exception:
+            return []
 
     def validate_self_price(self, value):
         if value < 0:
@@ -134,13 +165,17 @@ class OrderItemSerializer(serializers.Serializer):
 
 
 class OrderSerializer(serializers.ModelSerializer):
-    orders_list = serializers.JSONField(required=False)  # Добавлено required=False
+    orders_list = serializers.JSONField(required=False)
     summary_price = serializers.DecimalField(
-        max_digits=10, 
-        decimal_places=2, 
-        required=False  # Добавлено required=False
+        max_digits=10,
+        decimal_places=2,
+        required=False,
     )
     order_date = serializers.DateTimeField(format="%Y-%m-%d %H:%M:%S", read_only=True)
+    pickup_code = serializers.CharField(read_only=True)
+    pickup_code_generated_at = serializers.DateField(read_only=True)
+    delivery_method = serializers.CharField(required=False)
+    status = serializers.CharField(read_only=True)
 
     class Meta:
         model = Order
@@ -154,21 +189,38 @@ class OrderSerializer(serializers.ModelSerializer):
             "orders_list",
             "summary_price",
             "comment",
-            "is_approve",  
-            "is_paid"      
+            "delivery_method",
+            "status",
+            "pickup_code",
+            "pickup_code_generated_at",
+            "is_approve",
+            "is_paid",
         ]
-        read_only_fields = ["order_date", "is_approve", "is_paid"]
+        read_only_fields = [
+            "order_date",
+            "is_approve",
+            "is_paid",
+            "pickup_code",
+            "pickup_code_generated_at",
+            "status",
+        ]
 
     def create(self, validated_data):
-        # Получаем request из контекста
         request = self.context.get('request')
         if request:
-            # Получаем корзину и добавляем данные автоматически
             cart = Cart(request)
-            validated_data['orders_list'] = cart.get_orders_list()
-            validated_data['summary_price'] = cart.get_total_price()
-        
+            validated_data["orders_list"] = cart.get_orders_list()
+            validated_data["summary_price"] = cart.get_total_price()
+            if not validated_data.get("delivery_method"):
+                validated_data["delivery_method"] = "courier"
+            if not validated_data.get("status"):
+                validated_data["status"] = "pending_payment"
         return super().create(validated_data)
+
+    def to_representation(self, instance):
+        if hasattr(instance, 'refresh_pickup_code'):
+            instance.refresh_pickup_code()
+        return super().to_representation(instance)
 
 
 class CustomOrderSerializer(serializers.ModelSerializer):

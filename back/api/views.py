@@ -1,15 +1,22 @@
 # api/views.py
-from venv import logger
+import logging
+from django.conf import settings
+from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth import authenticate, login, logout
+from django.core.validators import validate_email
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.http import JsonResponse
 from django.middleware.csrf import get_token
 from django.shortcuts import get_object_or_404
+
+logger = logging.getLogger(__name__)
 from rest_framework import generics, status, serializers
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from django_ratelimit.decorators import ratelimit
 from django.utils.decorators import method_decorator
+from yookassa import Configuration, Payment
 from drf_spectacular.utils import (
     extend_schema,
     inline_serializer,
@@ -17,9 +24,8 @@ from drf_spectacular.utils import (
     OpenApiParameter,
 )
 from django.contrib.auth.models import User
-from api.models import Product, Order, CustomOrder, Category
+from api.models import Product, Order, CustomOrder, Category, CartItem
 from api.cart import Cart
-from django.http import JsonResponse
 from api.telegram_notification import Notify
 from .serializers import ProductSerializer, OrderSerializer, CustomOrderSerializer, CategorySerializer, AuthUserSerializer
 
@@ -266,7 +272,27 @@ class CartAddView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        cart.add(product, quantity)
+        existing_quantity = 0
+        if request.user.is_authenticated:
+            cart_item = CartItem.objects.filter(user=request.user, product=product).first()
+            if cart_item:
+                existing_quantity = cart_item.quantity
+        else:
+            session_cart = request.session.get(settings.CART_SESSION_ID, {})
+            product_data = session_cart.get(str(product.id))
+            if product_data:
+                existing_quantity = product_data.get("quantity", 0)
+
+        if hasattr(product, "quantity") and existing_quantity + quantity > product.quantity:
+            return Response(
+                {
+                    "error": f"Недостаточно товара на складе. Доступно: {product.quantity - existing_quantity}"
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        color = request.data.get('color')
+        cart.add(product, quantity, color=color)
 
         if request.headers.get("x-requested-with") == "XMLHttpRequest":
             return JsonResponse({"success": True, "message": "Товар добавлен в корзину", "cart_count": len(cart)})
@@ -325,7 +351,8 @@ class CartRemoveView(APIView):
     def post(self, request, product_id):
         cart = Cart(request)
         product = get_object_or_404(Product, id=product_id)
-        cart.remove(product)
+        color = request.data.get('color')
+        cart.remove(product, color=color)
 
         if request.headers.get("x-requested-with") == "XMLHttpRequest":
             return JsonResponse({"success": True, "message": "Товар удален из корзины", "cart_count": len(cart)})
@@ -448,7 +475,8 @@ class CartUpdateView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        cart.update(product, quantity)
+        color = request.data.get('color')
+        cart.update(product, quantity, color=color)
 
         return Response(
             {
@@ -588,6 +616,7 @@ class CartDetailView(APIView):
                     "price": str(product.price),
                     "quantity": item["quantity"],
                     "total_price": str(item["total_price"]),
+                    "color": item.get("color"),
                 }
             )
 
@@ -651,9 +680,29 @@ class AuthRegisterView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        try:
+            validate_email(email)
+        except DjangoValidationError:
+            return Response(
+                {"error": "Введите корректный email"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if len(password) < 8:
+            return Response(
+                {"error": "Пароль должен содержать минимум 8 символов"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         if User.objects.filter(username=email).exists():
             return Response(
                 {"error": "Пользователь с таким email уже существует"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if phone and len(phone) > 50:
+            return Response(
+                {"error": "Телефон должен быть короче 50 символов"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -842,6 +891,9 @@ class CreateOrderView(generics.CreateAPIView):
             orders_list=cart.get_orders_list(),
             summary_price=cart.get_total_price(),
             comment=comment,
+            delivery_method=request.data.get("delivery_method", "courier"),
+            status="pending_payment",
+            is_paid=False,
         )
         
         # Проверка ratelimit должна быть перед сохранением
@@ -864,6 +916,115 @@ class CreateOrderView(generics.CreateAPIView):
             {"success": True, "message": "Заказ успешно создан", "order_id": order.id},
             status=status.HTTP_201_CREATED
         )
+
+
+class CreateYooKassaPaymentView(APIView):
+    @extend_schema(
+        summary="Создать платёж YooKassa для заказа",
+        description="Создать платёж в YooKassa для существующего заказа и вернуть ссылку для оплаты.",
+        request=inline_serializer(
+            name="OrderPaymentRequest",
+            fields={
+                "order_id": serializers.IntegerField(help_text="ID заказа"),
+                "mail": serializers.EmailField(required=False, allow_blank=True, help_text="Email покупателя для гостевого заказа"),
+            },
+        ),
+        responses={
+            200: inline_serializer(
+                name="OrderPaymentResponse",
+                fields={
+                    "payment_url": serializers.CharField(help_text="Ссылка на оплату"),
+                    "payment_id": serializers.CharField(help_text="ID платежа YooKassa"),
+                },
+            ),
+            400: inline_serializer(name="OrderPaymentError", fields={"error": serializers.CharField()}),
+        },
+    )
+    def post(self, request, order_id):
+        order = get_object_or_404(Order, id=order_id)
+        if order.user and request.user.is_authenticated and order.user != request.user:
+            return Response({"error": "У вас нет доступа к этому заказу."}, status=status.HTTP_403_FORBIDDEN)
+
+        if order.is_paid:
+            return Response({"error": "Заказ уже оплачен."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if order.user is None:
+            mail = request.data.get("mail", "").strip()
+            if not mail or mail.lower() != order.mail.lower():
+                return Response({"error": "Чтобы оплатить заказ без аккаунта, укажите правильный email."}, status=status.HTTP_400_BAD_REQUEST)
+
+        shop_id = getattr(settings, "YOO_KASSA_SHOP_ID", None)
+        secret_key = getattr(settings, "YOO_KASSA_SECRET_KEY", None)
+        return_url = getattr(settings, "YOO_KASSA_RETURN_URL", None)
+
+        if not shop_id or not secret_key or not return_url:
+            return Response({"error": "Не настроены параметры YooKassa. Установите YOO_KASSA_SHOP_ID, YOO_KASSA_SECRET_KEY и YOO_KASSA_RETURN_URL."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        Configuration.account_id = shop_id
+        Configuration.secret_key = secret_key
+
+        try:
+            payment = Payment.create({
+                "amount": {
+                    "value": str(order.summary_price),
+                    "currency": "RUB",
+                },
+                "payment_method_data": {
+                    "type": "bank_card",
+                },
+                "confirmation": {
+                    "type": "redirect",
+                    "return_url": return_url,
+                },
+                "description": f"Оплата заказа #{order.id}",
+                "metadata": {
+                    "order_id": str(order.id),
+                },
+            })
+        except Exception as exc:
+            logger.error(f"YooKassa payment creation failed: {exc}")
+            return Response({"error": "Не удалось создать платёж. Проверьте настройки YooKassa."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        order.yookassa_payment_id = payment.id
+        order.status = "pending_payment"
+        order.save(update_fields=["yookassa_payment_id", "status"])
+
+        confirmation_url = None
+        if hasattr(payment, "confirmation") and isinstance(payment.confirmation, dict):
+            confirmation_url = payment.confirmation.get("confirmation_url") or payment.confirmation.get("url")
+        else:
+            confirmation_url = getattr(payment, "confirmation", {}).get("confirmation_url")
+
+        if not confirmation_url:
+            return Response({"error": "Не удалось получить ссылку на оплату."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        return Response({"payment_url": confirmation_url, "payment_id": payment.id})
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class YooKassaWebhookView(APIView):
+    authentication_classes = []
+    permission_classes = []
+
+    def post(self, request):
+        data = request.data
+        payment_object = data.get("object", {}).get("payment", {})
+        payment_status = payment_object.get("status")
+        payment_id = payment_object.get("id")
+        metadata = payment_object.get("metadata", {}) or {}
+        order_id = metadata.get("order_id")
+
+        if payment_status == "succeeded" and order_id:
+            try:
+                order = Order.objects.get(id=order_id)
+                order.is_paid = True
+                order.status = "paid"
+                order.yookassa_payment_id = payment_id
+                order.save(update_fields=["is_paid", "status", "yookassa_payment_id"])
+            except Order.DoesNotExist:
+                logger.error(f"YooKassa webhook: order {order_id} not found")
+
+        return Response({"status": "ok"})
 
 
 @method_decorator(ratelimit(key='ip', rate='5/h', method='POST'), name='dispatch')
