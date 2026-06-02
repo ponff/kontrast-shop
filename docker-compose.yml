@@ -4,6 +4,7 @@ services:
     build:
       context: ./back
       dockerfile: Dockerfile
+    restart: unless-stopped
     env_file:
       - .env.prod
     volumes:
@@ -26,6 +27,7 @@ services:
   frontend:
     build:
       context: ./front
+    restart: unless-stopped
     # Фронтенд также доступен через nginx, не выставляем порты хоста.
     depends_on:
       - backend
@@ -36,6 +38,7 @@ services:
     build:
       context: ./nginx
       dockerfile: Dockerfile
+    restart: unless-stopped
     volumes:
       - ./back/staticfiles:/staticfiles
       - ./back/media:/media
