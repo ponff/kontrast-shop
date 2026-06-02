@@ -1,6 +1,7 @@
 # Build stage
 FROM python:3.10-slim AS builder
 
+ENV DEBIAN_FRONTEND=noninteractive
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends build-essential && rm -rf /var/lib/apt/lists/*
@@ -11,6 +12,7 @@ RUN pip install --user --no-cache-dir -r requirements.txt
 # Production stage
 FROM python:3.10-slim
 
+ENV DEBIAN_FRONTEND=noninteractive
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
