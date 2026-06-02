@@ -7,12 +7,13 @@ import { useCategories } from '@/hooks/useCategories'
 
 export default function ProductCatalog() {
   const [selectedCategoryId, setSelectedCategoryId] = useState(null)
+  const [search, setSearch] = useState('')
   const { 
     data: products = [], 
     isLoading, 
     error,
     refetch 
-  } = useProducts(selectedCategoryId)
+  } = useProducts(selectedCategoryId, search)
   
   const {
     data: categories = [],
@@ -65,6 +66,9 @@ export default function ProductCatalog() {
       className='py-12 sm:py-16 px-4 sm:px-6 lg:px-8 bg-white scroll-mt-16 sm:scroll-mt-20'>
       <div className='container mx-auto'>
         <CatalogHeader />
+        <div className='flex items-center justify-between mb-4'>
+          <SearchBox value={search} onChange={setSearch} />
+        </div>
         <CategoryFilter 
           categories={categories} 
           selectedCategoryId={selectedCategoryId}
@@ -82,6 +86,20 @@ function CatalogHeader() {
     <h2 className='text-lg xs:text-xl sm:text-xl md:text-2xl lg:text-3xl font-molot font-bold text-black text-left mb-6 xs:mb-7 sm:mb-8 md:mb-9 lg:mb-10 xl:mb-12 px-1 xs:px-1.5 sm:px-2 md:px-0'>
       Каталог товаров
     </h2>
+  )
+}
+
+function SearchBox({ value, onChange }) {
+  return (
+    <div className='w-full max-w-md'>
+      <input
+        type='search'
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder='Поиск товаров по названию и описанию'
+        className='w-full px-3 py-2 border rounded focus:outline-none'
+      />
+    </div>
   )
 }
 

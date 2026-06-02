@@ -21,7 +21,7 @@ export default function ProductCard({ product }) {
   const removeItem = useCartStore(state => state.removeItem)
   const updateQuantity = useCartStore(state => state.updateQuantity)
   const isInCart = useCartStore(state => state.isInCart(product.id))
-  const inStock = product.quantity == null || product.quantity > 0
+  const inStock = product.status !== 'out_of_stock' && product.status !== 'discontinued' && (product.quantity == null || product.quantity > 0)
 
   const cartItems = useCartStore(state => state.items)
   const cartItem = cartItems.find(item => item.id === product.id)
@@ -279,12 +279,11 @@ export default function ProductCard({ product }) {
                 style={{ fontFamily: 'Arial, sans-serif' }}>
                 {product.price}
               </div>
-              <div className={`text-xs xs:text-[12px] sm:text-[13px] ${inStock ? 'text-green-700' : 'text-red-600'} font-medium`}>
-                {product.quantity == null
-                  ? 'В наличии'
-                  : product.quantity > 0
-                  ? `В наличии: ${product.quantity}`
-                  : 'Нет в наличии'}
+              <div className={`text-xs xs:text-[12px] sm:text-[13px] font-medium ${product.status === 'out_of_stock' || product.status === 'discontinued' ? 'text-red-600' : 'text-green-700'}`}>
+                {product.status === 'in_stock' && (product.quantity == null ? 'В наличии' : `В наличии: ${product.quantity}`)}
+                {product.status === 'out_of_stock' && 'Нет в наличии'}
+                {product.status === 'preorder' && 'Предзаказ'}
+                {product.status === 'discontinued' && 'Снят с производства'}
               </div>
             </div>
 

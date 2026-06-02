@@ -17,5 +17,5 @@ else:
     print("ℹ️  Суперпользователь 'admin' уже существует")
 END
 
-echo "🚀 Запускаем Django на 0.0.0.0:8000..."
-python manage.py runserver 0.0.0.0:8000
+echo "🚀 Запускаем Django через Gunicorn на 0.0.0.0:8000..."
+gunicorn back.wsgi:application --bind 0.0.0.0:8000 --workers 4 --timeout 60

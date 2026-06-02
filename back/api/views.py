@@ -11,6 +11,7 @@ from django.shortcuts import get_object_or_404
 
 logger = logging.getLogger(__name__)
 from rest_framework import generics, status, serializers
+from django.db.models import Q
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -70,16 +71,29 @@ class ProductListAPIView(generics.ListAPIView):
                 required=False,
                 type=int,
             )
+            ,
+            OpenApiParameter(
+                name="q",
+                description="Текстовый поиск по названию и описанию товара (используйте 'q' или 'search')",
+                required=False,
+                type=str,
+            ),
         ],
         responses={200: ProductSerializer(many=True)},
     )
     def get_queryset(self):
         queryset = Product.objects.all().select_related('category')
         category_id = self.request.query_params.get('category_id')
-        
+        q = self.request.query_params.get('q') or self.request.query_params.get('search')
+
         if category_id:
             queryset = queryset.filter(category_id=category_id)
-        
+
+        if q:
+            queryset = queryset.filter(
+                Q(name__icontains=q) | Q(description__icontains=q)
+            )
+
         return queryset
 
     def get(self, request, *args, **kwargs):

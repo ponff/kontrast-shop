@@ -153,7 +153,45 @@ docker compose restart backend
 
 ---
 
-## 📚 Документация
+## � Настройка YooKassa
+
+В проект уже подключена библиотека `yookassa` и реализованы:
+- создание платежа через `CreateYooKassaPaymentView`
+- сохранение `yookassa_payment_id` в заказе
+- webhook для смены статуса заказа на `paid` после успешной оплаты
+- кнопка оплаты в личном кабинете пользователя
+
+### Что надо настроить в окружении
+
+Установите переменные окружения для backend-конфига:
+- `YOO_KASSA_SHOP_ID` — идентификатор магазина YooKassa
+- `YOO_KASSA_SECRET_KEY` — секретный ключ магазина
+- `YOO_KASSA_RETURN_URL` — URL, на который пользователь вернется после оплаты
+
+Пример для `.env` или Docker:
+```bash
+YOO_KASSA_SHOP_ID=ваш_shop_id
+YOO_KASSA_SECRET_KEY=ваш_secret_key
+YOO_KASSA_RETURN_URL=https://ваш-домен.ru/
+```
+
+### В YooKassa
+
+1. В личном кабинете YooKassa добавьте URL webhook:
+   `https://ваш-домен.ru/api/orders/payment/webhook/`
+2. Убедитесь, что доступен HTTPS и запросы принимаются публично.
+3. Активируйте магазин и проверьте, что секретный ключ верный.
+
+### Что проверить после настройки
+
+- Заказ создается со статусом `pending_payment`
+- В личном кабинете клиента появляется кнопка `Оплатить заказ`
+- После успешной оплаты webhook меняет заказ на `paid`
+- `is_paid` у заказа становится `True`
+
+---
+
+## �📚 Документация
 
 - [django-grappelli документация](https://django-grappelli.readthedocs.io/)
 - [django-import-export документация](https://django-import-export.readthedocs.io/)
