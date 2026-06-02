@@ -108,6 +108,7 @@ class ProductSerializer(serializers.ModelSerializer):
             "self_price",
             "price",
             "quantity",
+            "status",
             "image_preview",
             "images",
             "color",

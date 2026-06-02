@@ -32,8 +32,8 @@ class ProductForm(forms.ModelForm):
 class ProductResource(resources.ModelResource):
     class Meta:
         model = Product
-        fields = ("id", "name", "description", "category", "self_price", "price", "image_directory")
-        export_order = ("id", "name", "description", "category", "self_price", "price", "image_directory")
+        fields = ("id", "name", "description", "category", "self_price", "price", "quantity", "status", "image_directory")
+        export_order = ("id", "name", "description", "category", "self_price", "price", "quantity", "status", "image_directory")
 
 
 class OrderResource(resources.ModelResource):
@@ -140,11 +140,12 @@ class PublicMediaAdmin(ModelAdmin):
 class ProductAdmin(ImportExportModelAdmin, ModelAdmin):
     form = ProductForm
     resource_class = ProductResource
-    list_display = ["name", "category", "self_price", "price"]
-    list_filter = ("category", ("self_price", RangeNumericFilter), "created_at")
+    list_display = ["name", "category", "self_price", "price", "status"]
+    list_editable = ["status"]
+    list_filter = ("category", ("self_price", RangeNumericFilter), "status")
     fieldsets = (
         ("Основная информация", {
-            "fields": ("name", "description", "category"),
+            "fields": ("name", "description", "category", "status"),
         }),
         ("Цены", {
             "fields": ("self_price", "price"),
@@ -153,12 +154,9 @@ class ProductAdmin(ImportExportModelAdmin, ModelAdmin):
             "fields": ("image_directory",),
         }),
     )
-    readonly_fields = ("price",)
-    search_fields = ["name", "description"]
-    ordering = ["-id"]
-    list_filter = ["category"]
-    search_fields = ["name", "category__name"]
     readonly_fields = ["image_preview", "price"]
+    search_fields = ["name", "category__name"]
+    ordering = ["-id"]
     form = ProductForm
 
 

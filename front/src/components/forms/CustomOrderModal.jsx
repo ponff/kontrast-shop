@@ -197,6 +197,7 @@ export default function CustomOrderModal({ trigger, cartItems = [] }) {
                     <option value='russian_post'>Почта России</option>
                   </select>
                 </div>
+              </div>
               </>
             ) : (
               <>

@@ -1,175 +1,277 @@
+# Kontrast Shop
 
-# Контраст Shop
+Интернет-магазин кожаных изделий и аксессуаров с современным стеком технологий.
 
-Интернет-магазин кожи и аксессуаров. Проект состоит из:
-- `back/` — Django REST API, админка, статические и медиаконтент.
-- `front/` — Next.js фронтенд.
-- `nginx/` — обратный прокси для фронтенда, API, статических файлов и HTTPS.
-- `docker-compose.yml` — локальная и продакшн сборка всех сервисов.
+## 🏗️ Архитектура
 
-## Что уже настроено
-- Docker Compose с сервисами `backend`, `frontend` и `nginx`.
-- Nginx прокси внутри Docker-сети.
-- `back/back/settings.py` поддерживает переменные окружения:
-  - `DJANGO_SECRET_KEY`
-  - `DJANGO_DEBUG`
-  - `DJANGO_ALLOWED_HOSTS`
-- Пример production-файла `.env.prod.example`.
+Проект состоит из трех основных компонентов:
 
-## Полное развертывание на сервере
+- **Backend** — Django REST Framework API на порту 8000
+- **Frontend** — Next.js приложение на порту 3000
+- **Nginx** — реверс-прокси для маршрутизации и SSL
 
-### 1. Настройка DNS
-В панели управления доменом добавьте записи:
-- `kontrast-shop.ru` → `186.246.30.115`
-- `www.kontrast-shop.ru` → `kontrast-shop.ru`
+Все компоненты запускаются через Docker Compose.
 
-> После изменения DNS может пройти до 30 минут, прежде чем домен начнёт резолвиться.
+## 🚀 Быстрый старт
 
-### 2. Подготовка сервера
-Рекомендуется Ubuntu/Debian. На сервере нужны:
-- Docker
-- Docker Compose (плагин `docker compose`)
-- Git
-- Certbot
-- ufw или другой фаервол
+### Автоматическое развертывание на сервере
 
-### 3. Разворачивание проекта на сервере
-Выполните на сервере:
+Для развертывания на чистом Ubuntu сервере используйте автоматический скрипт:
 
 ```bash
-sudo apt update
-sudo apt install -y git curl ca-certificates gnupg lsb-release software-properties-common
+# Подключитесь к серверу
+ssh root@your-server-ip
+
+# Скачайте и запустите скрипт
+wget https://raw.githubusercontent.com/ponff/kontrast-shop/main/deploy_server.sh
+chmod +x deploy_server.sh
+./deploy_server.sh
 ```
 
-Склонируйте репозиторий:
+Скрипт автоматически:
+- Установит Docker, Docker Compose, Git, Certbot
+- Настроит firewall
+- Склонирует проект
+- Получит SSL сертификаты
+- Создаст безопасные переменные окружения
+- Соберет и запустит все контейнеры
+
+**Важно:** Перед запуском убедитесь, что DNS записи для вашего домена указывают на IP сервера.
+
+Подробная инструкция: [DEPLOY_INSTRUCTIONS.md](DEPLOY_INSTRUCTIONS.md)
+
+### Локальная разработка
 
 ```bash
-sudo mkdir -p /srv/kontrast
-sudo chown "$USER":"$USER" /srv/kontrast
-cd /srv/kontrast
-git clone https://github.com/ponff/kontrast-shop
-```
+# Клонировать репозиторий
+git clone https://github.com/ponff/kontrast-shop.git
+cd kontrast-shop
 
-### 4. Подготовка переменных окружения
-Скопируйте пример файла:
+# Создать файл .env.prod (для локальной разработки можно использовать тестовые значения)
+cat > .env.prod << EOF
+DJANGO_SECRET_KEY=local-dev-secret-key-change-in-production
+DJANGO_DEBUG=True
+DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1,backend
+EOF
 
-```bash
-cp .env.prod.example .env.prod
-```
-
-Откройте `.env.prod` и задайте значения:
-
-```ini
-DJANGO_SECRET_KEY=<сильный секретный ключ>
-DJANGO_DEBUG=False
-DJANGO_ALLOWED_HOSTS=kontrast-shop.ru,186.246.30.115
-```
-
-### 5. Получение SSL-сертификатов
-Для HTTPS используйте Certbot. Если порт 80 свободен:
-
-```bash
-sudo apt install -y certbot
-sudo certbot certonly --standalone --agree-tos --email damirponff@gmail.com -d kontrast-shop.ru
-```
-
-Если на сервере уже запущен другой веб-сервер, остановите его временно перед получением сертификата.
-
-### 6. Настройка Docker Compose
-Убедитесь, что `docker-compose.yml` содержит:
-- `nginx` с портами `80:80` и `443:443`
-- монтирование `./back/staticfiles:/staticfiles`
-- монтирование `./back/media:/media`
-- монтирование `/etc/letsencrypt:/etc/letsencrypt:ro`
-
-### 7. Запуск проекта
-Из корня проекта выполните:
-
-```bash
-sudo docker compose up -d --build
-```
-
-### 8. Миграции и статика
-
-```bash
-sudo docker compose exec backend python manage.py migrate --noinput
-sudo docker compose exec backend python manage.py collectstatic --noinput
-```
-
-### 9. Открытие портов
-Если используется `ufw`:
-
-```bash
-sudo ufw allow 80/tcp
-sudo ufw allow 443/tcp
-sudo ufw reload
-```
-
-### 10. Проверка работы
-Откройте в браузере:
-
-```text
-https://kontrast-shop.ru
-```
-
-Проверьте логи:
-
-```bash
-sudo docker compose logs -f nginx
-sudo docker compose logs -f backend
-```
-
-## Полезные команды
-
-```bash
-sudo docker compose ps
-sudo docker compose restart nginx backend frontend
-sudo docker compose down
-```
-
-## Локальная разработка
-
-Для локальной работы достаточно:
-
-```bash
+# Запустить все сервисы
 docker compose up -d --build
+
+# Проверить статус
+docker compose ps
 ```
 
-Если надо работать с медиаданными и базой, скопируйте `back/db.sqlite3` и `back/media/` из рабочей среды.
+Сайт будет доступен на:
+- Frontend: http://localhost
+- API: http://localhost/api/
+- Django Admin: http://localhost/admin
+- API Docs: http://localhost/swagger
 
-## Дополнения и рекомендации
-- Сейчас используется SQLite. Для продакшена лучше подключить PostgreSQL.
-- Если хотите автоматизировать получение сертификатов, можно использовать скрипт `deploy/deploy_prod.sh`.
-- В продакшене обязательно `DJANGO_DEBUG=False`.
+**Учетные данные по умолчанию:**
+- Логин: `admin`
+- Пароль: `admin`
 
-### Сборка Docker при ограниченном месте на диске (< 15 ГБ)
+## 📦 Структура проекта
 
-Если у вас на сервере мало свободного места, выполните перед сборкой:
+```
+kontrast-shop/
+├── back/                    # Django backend
+│   ├── api/                 # Django app с моделями и API
+│   ├── back/                # Настройки Django проекта
+│   ├── media/               # Загруженные медиафайлы
+│   ├── staticfiles/         # Собранная статика
+│   ├── Dockerfile           # Docker образ для backend
+│   ├── requirements.txt     # Python зависимости
+│   └── start.sh             # Скрипт запуска с миграциями
+├── front/                   # Next.js frontend
+│   ├── src/                 # Исходный код приложения
+│   ├── public/              # Статические файлы
+│   ├── Dockerfile           # Docker образ для frontend
+│   └── package.json         # Node.js зависимости
+├── nginx/                   # Nginx конфигурация
+│   ├── nginx.conf           # Основной конфиг с SSL
+│   └── Dockerfile           # Docker образ для nginx
+├── docker-compose.yml       # Оркестрация всех сервисов
+├── deploy_server.sh         # Скрипт автоматического развертывания
+└── README.md                # Этот файл
+```
+
+## 🛠️ Технологии
+
+### Backend
+- Python 3.10
+- Django 5.2.3
+- Django REST Framework 3.16.0
+- SQLite (можно заменить на PostgreSQL)
+- Gunicorn
+- YooKassa для оплаты
+- Telegram Bot для уведомлений
+
+### Frontend
+- Next.js 15
+- React 19
+- TypeScript
+- Tailwind CSS
+- Zustand (управление состоянием корзины)
+
+### DevOps
+- Docker & Docker Compose
+- Nginx
+- Let's Encrypt SSL
+- Автоматический перезапуск контейнеров
+
+## 📖 Полезные команды
+
+### Docker Compose
 
 ```bash
-# Очистите всё старое
+# Запустить все сервисы
+docker compose up -d
+
+# Пересобрать и запустить после изменений
+docker compose up -d --build
+
+# Остановить все сервисы
+docker compose down
+
+# Просмотр логов
+docker compose logs -f
+
+# Логи отдельного сервиса
+docker compose logs -f backend
+docker compose logs -f frontend
+docker compose logs -f nginx
+
+# Статус контейнеров
+docker compose ps
+
+# Перезапустить сервис
+docker compose restart backend
+```
+
+### Django команды
+
+```bash
+# Выполнить миграции
+docker compose exec backend python manage.py migrate
+
+# Собрать статику
+docker compose exec backend python manage.py collectstatic --noinput
+
+# Создать суперпользователя
+docker compose exec backend python manage.py createsuperuser
+
+# Войти в Django shell
+docker compose exec backend python manage.py shell
+
+# Войти в контейнер
+docker compose exec backend bash
+```
+
+### Управление данными
+
+Для работы с данными смотрите документацию в папке `back/`:
+- [LOAD_DATA_README.md](back/LOAD_DATA_README.md) - загрузка тестовых данных
+- [IMPORT_EXPORT_GUIDE.md](back/IMPORT_EXPORT_GUIDE.md) - импорт/экспорт товаров
+- [UPLOAD_IMAGES_GUIDE.md](back/UPLOAD_IMAGES_GUIDE.md) - структура папок для изображений
+
+## 🔒 Безопасность
+
+В продакшене обязательно:
+
+1. Измените `DJANGO_SECRET_KEY` на случайную строку (50+ символов)
+2. Установите `DJANGO_DEBUG=False`
+3. Укажите правильные домены в `DJANGO_ALLOWED_HOSTS`
+4. Смените пароль администратора после первого входа
+5. Настройте регулярные бэкапы базы данных
+
+## 🔄 Автоматический перезапуск
+
+Все контейнеры настроены с `restart: unless-stopped`, что означает:
+- Автоматический перезапуск при падении
+- Автоматический запуск при перезагрузке сервера
+- Не перезапускаются только если вы их вручную остановите
+
+## 📝 Переменные окружения
+
+Создайте файл `.env.prod` в корне проекта:
+
+```env
+DJANGO_SECRET_KEY=ваш-длинный-случайный-секретный-ключ
+DJANGO_DEBUG=False
+DJANGO_ALLOWED_HOSTS=your-domain.com,www.your-domain.com,your-server-ip
+```
+
+Для генерации безопасного SECRET_KEY:
+```bash
+python3 -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"
+```
+
+## 🐛 Отладка проблем
+
+### Nginx не запускается
+```bash
+# Проверить наличие сертификатов
+sudo ls -la /etc/letsencrypt/live/your-domain.com/
+
+# Проверить логи
+docker compose logs nginx
+```
+
+### Backend не запускается
+```bash
+# Проверить логи
+docker compose logs backend
+
+# Проверить переменные окружения
+docker compose exec backend env | grep DJANGO
+```
+
+### База данных не сохраняется
+```bash
+# Проверить права на файл
+ls -la back/db.sqlite3
+
+# Должно быть -rw-rw-rw- или похожее
+chmod 666 back/db.sqlite3
+```
+
+### Очистка Docker при нехватке места
+```bash
+# Очистить все неиспользуемые образы и контейнеры
 docker system prune -a --volumes
 
-# Очистите кэш builder
+# Очистить кэш builder
 docker builder prune -a
-
-# Проверьте свободное место (нужно минимум ~8-10 ГБ)
-df -h
-
-# Теперь собирайте
-sudo docker compose up -d --build
 ```
 
-**Оптимизация проекта:**
-- Multi-stage builds в Dockerfile (размер базовых образов упал на 40%)
-- python:3.10-slim вместо обычного (200MB → 125MB)
-- node:20-alpine вместо regular (1GB → 350MB)
-- Исключены dev dependencies и build артефакты
-- Убрано volume монтирование для продакшена (volume затмило бы образ дополнительными слоями)
+## 📊 Мониторинг
 
-Если ошибка повторится, проверьте: `docker system df` — покажет точное использование места.
-
-Если места совсем нет, удалите старые образы:
 ```bash
-docker image prune -a  # удалит ВСЕ неиспользуемые образы
+# Использование ресурсов контейнерами
+docker stats
+
+# Использование диска
+df -h
+docker system df
 ```
+
+## 💾 Бэкапы
+
+Рекомендуется делать регулярные бэкапы:
+
+```bash
+# Бэкап базы данных
+cp back/db.sqlite3 back/db.sqlite3.backup.$(date +%Y%m%d_%H%M%S)
+
+# Бэкап медиафайлов
+tar -czf media_backup_$(date +%Y%m%d_%H%M%S).tar.gz back/media/
+```
+
+## 📞 Поддержка
+
+Для вопросов и предложений создавайте issue в репозитории.
+
+## 📄 Лицензия
+
+Проект создан для коммерческого использования.

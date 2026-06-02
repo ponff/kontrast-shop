@@ -1,16 +1,17 @@
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../lib/api";
 
-const fetchProducts = async (categoryId = null) => {
-  const params = categoryId ? { category_id: categoryId } : {};
+const fetchProducts = async (categoryId = null, q = null) => {
+  const params = {};
+  if (categoryId) params.category_id = categoryId;
+  if (q) params.q = q;
   const response = await api.get("/products/", { params });
   return response.data;
 };
-
-export const useProducts = (categoryId = null) => {
+export const useProducts = (categoryId = null, q = null) => {
   return useQuery({
-    queryKey: ['products', categoryId],
-    queryFn: () => fetchProducts(categoryId),
+    queryKey: ['products', categoryId, q],
+    queryFn: () => fetchProducts(categoryId, q),
     select: (productsData) => {
       const formattedProducts = Array.isArray(productsData)
         ? productsData.map(product => ({

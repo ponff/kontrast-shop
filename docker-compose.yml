@@ -4,7 +4,12 @@ services:
     build:
       context: ./back
       dockerfile: Dockerfile
-    # В продакшене volume НЕ монтируется - образ полностью автономен
+    restart: unless-stopped
+    env_file:
+      - .env.prod
+    volumes:
+      - ./back/db.sqlite3:/app/db.sqlite3
+      - ./back/media:/app/media
     networks:
       - app_network
     dns:
@@ -22,6 +27,7 @@ services:
   frontend:
     build:
       context: ./front
+    restart: unless-stopped
     # Фронтенд также доступен через nginx, не выставляем порты хоста.
     depends_on:
       - backend
@@ -32,6 +38,7 @@ services:
     build:
       context: ./nginx
       dockerfile: Dockerfile
+    restart: unless-stopped
     volumes:
       - ./back/staticfiles:/staticfiles
       - ./back/media:/media

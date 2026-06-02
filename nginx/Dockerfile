@@ -5,4 +5,6 @@ RUN apk add --no-cache certbot certbot-nginx
 
 # Копирование конфигурации Nginx
 COPY nginx.conf /etc/nginx/conf.d/default.conf
-COPY nginx.conf.prod /etc/nginx/conf.d/prod.conf
+
+# Удаление дефолтного конфига если есть
+RUN rm -f /etc/nginx/conf.d/default.conf.dpkg-dist

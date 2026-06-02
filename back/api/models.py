@@ -42,6 +42,13 @@ COLOR_CHOICES = [
     ('-', 'Не выбран'),
 ]
 
+PRODUCT_STATUS_CHOICES = [
+    ('in_stock', 'В наличии'),
+    ('out_of_stock', 'Нет в наличии'),
+    ('preorder', 'Предзаказ'),
+    ('discontinued', 'Снят с производства'),
+]
+
 STATUS_CHOICES = [
     ('-', 'Новый'),
     ('pending_payment', 'Ожидает оплаты'),
@@ -103,6 +110,12 @@ class Product(models.Model):
         default=0,
         verbose_name="Количество на складе",
         help_text="Доступное количество товара для продажи",
+    )
+    status = models.CharField(
+        max_length=50,
+        choices=PRODUCT_STATUS_CHOICES,
+        default='in_stock',
+        verbose_name='Статус товара',
     )
 
     class Meta:
