@@ -4,7 +4,12 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 COPY package.json package-lock.json* yarn.lock* ./
-RUN npm ci && npm cache clean --force
+RUN npm config set fetch-timeout 600000 && \
+    npm config set fetch-retries 5 && \
+    npm config set fetch-retry-mintimeout 20000 && \
+    npm config set fetch-retry-maxtimeout 120000 && \
+    npm ci && \
+    npm cache clean --force
 
 COPY . .
 RUN npm run build
