@@ -166,6 +166,7 @@ echo ""
 # Шаг 11: Запуск Docker Compose
 print_info "Шаг 10/10: Сборка и запуск контейнеров..."
 print_warning "Это может занять 5-10 минут..."
+print_warning "Frontend будет собран внутри Docker (занимает больше времени при первом запуске)"
 docker compose up -d --build
 
 print_success "Контейнеры запущены!"
