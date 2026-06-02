@@ -128,22 +128,23 @@ export default function CustomOrderModal({ trigger, cartItems = [] }) {
 
           <form className='space-y-2.5 xs:space-y-3 sm:space-y-3 md:space-y-4' onSubmit={onSubmit}>
             {profileData ? (
-              <div className='space-y-3'>
-                <div className='rounded-lg border border-[#C6A884] bg-[#F7F3EA] p-4'>
-                  <p className='text-sm xs:text-base text-[#4A382B] mb-2'>Данные заказа</p>
-                  <p className='text-base text-black'>ФИО: {profileData.full_name || 'Не указано'}</p>
-                  <p className='text-base text-black'>Телефон: {profileData.phone || 'Не указано'}</p>
-                  <p className='text-base text-black'>Email: {profileData.mail || 'Не указано'}</p>
-                  <p className='text-base text-black'>Адрес: {profileData.address || 'Не указан'}</p>
+              <>
+                <div className='space-y-3'>
+                  <div className='rounded-lg border border-[#C6A884] bg-[#F7F3EA] p-4'>
+                    <p className='text-sm xs:text-base text-[#4A382B] mb-2'>Данные заказа</p>
+                    <p className='text-base text-black'>ФИО: {profileData.full_name || 'Не указано'}</p>
+                    <p className='text-base text-black'>Телефон: {profileData.phone || 'Не указано'}</p>
+                    <p className='text-base text-black'>Email: {profileData.mail || 'Не указано'}</p>
+                    <p className='text-base text-black'>Адрес: {profileData.address || 'Не указан'}</p>
+                  </div>
+                  <input type='hidden' name='full_name' value={profileData.full_name || ''} />
+                  <input type='hidden' name='phone' value={profileData.phone || ''} />
+                  <input type='hidden' name='mail' value={profileData.mail || ''} />
+                  <input type='hidden' name='address' value={profileData.address || ''} />
                 </div>
-                <input type='hidden' name='full_name' value={profileData.full_name || ''} />
-                <input type='hidden' name='phone' value={profileData.phone || ''} />
-                <input type='hidden' name='mail' value={profileData.mail || ''} />
-                <input type='hidden' name='address' value={profileData.address || ''} />
-              </div>
 
-              <div className='rounded-lg border border-[#C6A884] bg-[#F7F3EA] p-4 space-y-3'>
-                <p className='text-sm xs:text-base font-bengaly text-[#4A382B]'>Адрес доставки</p>
+                <div className='rounded-lg border border-[#C6A884] bg-[#F7F3EA] p-4 space-y-3'>
+                  <p className='text-sm xs:text-base font-bengaly text-[#4A382B]'>Адрес доставки</p>
                 <div className='space-y-2'>
                   <label className='flex items-center gap-2'>
                     <input
@@ -196,7 +197,7 @@ export default function CustomOrderModal({ trigger, cartItems = [] }) {
                     <option value='russian_post'>Почта России</option>
                   </select>
                 </div>
-              </div>
+              </>
             ) : (
               <>
                 <FormField id='full_name' label='ФИО' required placeholder='Иванов Иван Иванович' />
