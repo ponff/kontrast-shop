@@ -1,34 +1,26 @@
-#!/usr/bin/env python
-import os
-import django
+from django.test import TestCase
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'back.settings')
-django.setup()
-
-from api.models import Product, PublicMedia
+from api.models import Category, Product
 from api.serializers import ProductSerializer
 
-# Получим первый товар
-product = Product.objects.first()
-print(f'Товар: {product.name}')
-print(f'image_directory: {product.image_directory}')
 
-# Сериализуем его
-serializer = ProductSerializer(product)
-data = serializer.data
-print(f'\nAPI ответ:')
-print(f'  id: {data.get("id")}')
-print(f'  name: {data.get("name")}')
-print(f'  images: {data.get("images")}')
-print(f'  image_preview: {data.get("image_preview")}')
+class ProductSerializerTest(TestCase):
+    def test_product_serializer_returns_expected_fields(self):
+        category = Category.objects.create(name='Тестовая категория', description='Тест')
+        product = Product.objects.create(
+            name='Тестовый товар',
+            description='Описание товара',
+            category=category,
+            self_price=100.0,
+            quantity=5,
+            status='in_stock',
+            image_directory='products/test',
+        )
 
-# Проверим, что ищет сериализатор
-images = PublicMedia.objects.filter(target_dir=product.image_directory)
-print(f'\nФото с target_dir={product.image_directory}: {images.count()}')
-for img in images:
-    print(f'  - {img.file.url}')
+        serializer = ProductSerializer(product)
 
-# Покажем какое фото загружено
-print(f'\nВсе загруженные фото:')
-for img in PublicMedia.objects.all():
-    print(f'  target_dir={img.target_dir}, file={img.file.name}, url={img.file.url}')
+        self.assertEqual(serializer.data['id'], product.id)
+        self.assertEqual(serializer.data['name'], product.name)
+        self.assertEqual(serializer.data['status'], 'in_stock')
+        self.assertIn('images', serializer.data)
+        self.assertIn('image_preview', serializer.data)

@@ -14,7 +14,7 @@ DEBUG = os.environ.get("DJANGO_DEBUG", "True") == "True"
 # Ожидается: список хостов через запятую, например: "kontrast-shop.ru,127.0.0.1"
 _allowed = os.environ.get(
     "DJANGO_ALLOWED_HOSTS",
-    "127.0.0.1,localhost,backend,frontend,nginx",
+    "127.0.0.1,localhost,localhost:8000,backend,frontend,nginx",
 )
 ALLOWED_HOSTS = [h.strip() for h in _allowed.split(",") if h.strip()]
 
