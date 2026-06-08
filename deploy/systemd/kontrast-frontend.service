@@ -1,0 +1,19 @@
+[Unit]
+Description=Kontrast Shop Next.js Frontend
+After=network.target
+
+[Service]
+Type=simple
+User=kontrast
+Group=www-data
+WorkingDirectory=/opt/kontrast-shop/front
+Environment="NODE_ENV=production"
+Environment="PORT=3000"
+ExecStart=/usr/bin/npm start
+StandardOutput=append:/var/log/kontrast-shop/frontend.log
+StandardError=append:/var/log/kontrast-shop/frontend-error.log
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

@@ -22,7 +22,7 @@ COPY . .
 
 ENV PATH=/root/.local/bin:$PATH
 
-RUN chmod +x /app/start.sh
+RUN sed -i 's/\r$//' /app/start.sh && chmod +x /app/start.sh
 
 EXPOSE 8000
 

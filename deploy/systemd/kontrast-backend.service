@@ -1,0 +1,24 @@
+[Unit]
+Description=Kontrast Shop Django Backend
+After=network.target
+
+[Service]
+Type=notify
+User=kontrast
+Group=www-data
+WorkingDirectory=/opt/kontrast-shop/back
+Environment="PATH=/opt/kontrast-shop/back/.venv/bin"
+EnvironmentFile=/opt/kontrast-shop/back/.env.prod
+ExecStart=/opt/kontrast-shop/back/.venv/bin/gunicorn \
+    back.wsgi:application \
+    --bind 127.0.0.1:8000 \
+    --workers 4 \
+    --timeout 60 \
+    --access-logfile /var/log/kontrast-shop/backend-access.log \
+    --error-logfile /var/log/kontrast-shop/backend-error.log \
+    --log-level info
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
