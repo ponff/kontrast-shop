@@ -98,7 +98,11 @@ echo -e "\n${BLUE}👤 Шаг 2/10: Создание пользователя и
 
 # Создать пользователя kontrast
 if ! id "$APP_USER" &>/dev/null; then
-    useradd -r -s /bin/bash -d "$APP_DIR" -m "$APP_USER"
+    if [ -d "$APP_DIR" ]; then
+        useradd -r -s /bin/bash -d "$APP_DIR" "$APP_USER"
+    else
+        useradd -r -s /bin/bash -d "$APP_DIR" -m "$APP_USER"
+    fi
     usermod -aG www-data "$APP_USER"
     echo -e "${GREEN}✅ Пользователь $APP_USER создан${NC}"
 else
@@ -121,27 +125,35 @@ echo -e "\n${BLUE}📥 Шаг 3/10: Подготовка кода приложе
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 if [ -d "$SCRIPT_DIR/.git" ]; then
-    echo -e "${YELLOW}   Копирование кода из текущей директории...${NC}"
+    if [ "$SCRIPT_DIR" = "$APP_DIR" ]; then
+        echo -e "${YELLOW}   Скрипт запущен из целевой директории, копирование пропускаем...${NC}"
+    else
+        echo -e "${YELLOW}   Копирование кода из текущей директории...${NC}"
 
-    # Если целевая директория существует, делаем backup
-    if [ -d "$APP_DIR" ] && [ "$(ls -A $APP_DIR)" ]; then
-        BACKUP_DIR="${APP_DIR}_backup_$(date +%Y%m%d_%H%M%S)"
-        echo -e "${YELLOW}   Создание backup: $BACKUP_DIR${NC}"
-        mv "$APP_DIR" "$BACKUP_DIR"
+        # Если целевая директория существует, делаем backup
+        if [ -d "$APP_DIR" ] && [ "$(ls -A "$APP_DIR")" ]; then
+            BACKUP_DIR="${APP_DIR}_backup_$(date +%Y%m%d_%H%M%S)"
+            echo -e "${YELLOW}   Создание backup: $BACKUP_DIR${NC}"
+            mv "$APP_DIR" "$BACKUP_DIR"
+        fi
+
+        mkdir -p "$APP_DIR"
+        cp -a "$SCRIPT_DIR"/. "$APP_DIR"/
+        chown -R "$APP_USER:www-data" "$APP_DIR"
+        echo -e "${GREEN}✅ Код скопирован${NC}"
     fi
-
-    # Копируем код
-    mkdir -p "$APP_DIR"
-    cp -r "$SCRIPT_DIR"/* "$APP_DIR/" 2>/dev/null || true
-    cp -r "$SCRIPT_DIR"/.git* "$APP_DIR/" 2>/dev/null || true
-    chown -R "$APP_USER:www-data" "$APP_DIR"
-    echo -e "${GREEN}✅ Код скопирован${NC}"
 else
     echo -e "${YELLOW}   Клонирование из Git (если нужно, укажите URL репозитория)${NC}"
     echo -e "${RED}   Или скопируйте код вручную в $APP_DIR${NC}"
 fi
 
 cd "$APP_DIR"
+
+if [ ! -d "$APP_DIR/back" ]; then
+    echo -e "${RED}❌ Ошибка: каталог $APP_DIR/back не найден.${NC}"
+    echo -e "${YELLOW}💡 Проверьте, что в директории $APP_DIR находится корень проекта, содержащий папку back.${NC}"
+    exit 1
+fi
 
 ###############################################################################
 # 4. НАСТРОЙКА BACKEND (Django)
