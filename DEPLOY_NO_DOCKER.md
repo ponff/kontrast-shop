@@ -29,8 +29,8 @@
 Самый простой способ - использовать автоматический скрипт развертывания:
 
 ```bash
-# 1. Клонировать или скопировать репозиторий на сервер
-git clone <your-repo-url> /opt/kontrast-shop
+# 1. Клонировать репозиторий на сервер
+git clone https://github.com/ponff/kontrast-shop /opt/kontrast-shop
 cd /opt/kontrast-shop
 
 # 2. Сделать скрипт исполняемым
@@ -40,6 +40,8 @@ chmod +x deploy_no_docker.sh
 sudo ./deploy_no_docker.sh
 ```
 
+Или еще проще — копируйте и вставляйте эти 4 строки как есть.
+
 Скрипт автоматически:
 - ✅ Установит все зависимости
 - ✅ Создаст системного пользователя
@@ -47,6 +49,19 @@ sudo ./deploy_no_docker.sh
 - ✅ Получит SSL сертификат Let's Encrypt
 - ✅ Настроит Nginx и systemd сервисы
 - ✅ Запустит все компоненты
+
+## 🔧 Быстрая проверка после установки
+
+Если окружение уже есть и вы хотите проверить backend вручную:
+
+```bash
+cd /opt/kontrast-shop/back
+source .venv/bin/activate
+python manage.py check
+python manage.py test
+```
+
+Если `.venv` уже создано, то достаточно `source .venv/bin/activate` и `python manage.py test`.
 
 **Время выполнения**: 10-15 минут (зависит от скорости интернета)
 
