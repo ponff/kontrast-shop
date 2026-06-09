@@ -37,6 +37,10 @@ Thumbs.db
 .env.local
 *.log
 
+# Ignore production env files with secrets
+/back/.env.prod
+/.env.prod
+
 # Build artifacts
 *.zip
 *.tar.gz

@@ -173,8 +173,8 @@ sudo -u "$APP_USER" .venv/bin/pip install --upgrade pip
 sudo -u "$APP_USER" .venv/bin/pip install -r requirements.txt
 echo -e "${GREEN}✅ Python зависимости установлены${NC}"
 
-# Создать .env.prod файл
-echo -e "${YELLOW}   Создание .env.prod...${NC}"
+# Создать .env.prod файл (без хардкода секретов)
+echo -e "${YELLOW}   Создание .env.prod (без заполнения секретов)...${NC}"
 if [ ! -f ".env.prod" ]; then
     SECRET_KEY=$(python3 -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())")
 
@@ -184,19 +184,18 @@ DJANGO_SECRET_KEY=$SECRET_KEY
 DJANGO_DEBUG=False
 DJANGO_ALLOWED_HOSTS=$DOMAIN,$WWW_DOMAIN,$SERVER_IP,127.0.0.1,localhost
 
-# Yandex Kassa (замените на реальные значения)
-YOO_KASSA_SHOP_ID=1372207
-YOO_KASSA_SECRET_KEY=test_xvhVM9NvcVYapkEOOw54p7Iqc4F9TpgUgFSfwfFtzdM
-YOO_KASSA_RETURN_URL=https://$DOMAIN/
-
-# Telegram бот (замените на реальные значения)
-TELEGRAM_BOT_TOKEN=8760492400:AAEiZQfgoiHdsepZ2GfCONmkgewKsslRhTM
-TELEGRAM_SECRET_CODE=0000
+# ВАЖНО: платежные данные и токены НЕ заполняются автоматически.
+# Заполните вручную или запустите скрипт: ./scripts/setup_env.sh
+# YOO_KASSA_SHOP_ID=
+# YOO_KASSA_SECRET_KEY=
+# YOO_KASSA_RETURN_URL=https://$DOMAIN/
+# TELEGRAM_BOT_TOKEN=
+# TELEGRAM_SECRET_CODE=
 EOF
 
     chown "$APP_USER:www-data" .env.prod
     chmod 600 .env.prod
-    echo -e "${GREEN}✅ .env.prod создан${NC}"
+    echo -e "${GREEN}✅ .env.prod создан (с заглушками). Заполните секреты вручную или используйте scripts/setup_env.sh${NC}"
 else
     echo -e "${YELLOW}⚠️  .env.prod уже существует, пропускаем${NC}"
 fi

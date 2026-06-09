@@ -4,7 +4,7 @@ set -e
 echo "=== Prebuild Frontend Script ==="
 echo "This script builds the frontend locally and prepares it for deployment"
 
-cd front
+dd front
 
 echo "Installing dependencies..."
 npm ci
