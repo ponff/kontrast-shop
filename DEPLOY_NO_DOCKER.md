@@ -1,407 +1,48 @@
-# 🚀 Развертывание Kontrast Shop без Docker
 
-Полное руководство по развертыванию интернет-магазина Kontrast Shop на Ubuntu/Debian сервере без использования Docker.
+# Быстрая установка и запуск Kontrast Shop (без Docker)
 
-## 📋 Требования
+Ниже — обновлённый короткий набор команд, адаптированный под текущую структуру репозитория.
 
-### Минимальные требования сервера:
-- **ОС**: Ubuntu 20.04+ или Debian 11+
-- **RAM**: Минимум 2 GB (рекомендуется 4 GB)
-- **Диск**: Минимум 20 GB свободного места
-- **Процессор**: 2 CPU ядра
-- **Доступ**: Root или sudo права
-
-### Требования к сети:
-- Домен, направленный на IP сервера (A-записи для домена и www)
-- Открытые порты: 22 (SSH), 80 (HTTP), 443 (HTTPS)
-
-### Что будет установлено:
-- Python 3.10+ с виртуальным окружением
-- Node.js 20.x
-- Nginx (веб-сервер и reverse proxy)
-- Certbot (для SSL сертификатов Let's Encrypt)
-- Gunicorn (WSGI сервер для Django)
-
----
-
-## 🎯 Быстрый старт (автоматическое развертывание)
-
-Самый простой способ - использовать автоматический скрипт развертывания:
+1) Клонируем репозиторий и переходим в папку:
 
 ```bash
-# 1. Клонировать репозиторий на сервер
+sudo mkdir -p /opt/kontrast-shop
+sudo chown $USER:$USER /opt/kontrast-shop
 git clone https://github.com/ponff/kontrast-shop /opt/kontrast-shop
 cd /opt/kontrast-shop
+```
 
-# 2. Сделать скрипт исполняемым
+2) Сгенерировать/настроить переменные окружения (обязательно перед деплоем)
+
+Удобный способ — запустить интерактивный helper, который создаст `back/.env.prod` и `front/.env.production`:
+
+```bash
+chmod +x scripts/setup_env.sh
+./scripts/setup_env.sh
+```
+
+Этот скрипт создаст файлы с безопасными правами (`600`) и подскажет, какие значения заполнить. Файлы не должны попадать в git (в проекте добавлено правило в `.gitignore`).
+
+3) Запустить автоматический деплой (скрипт установит зависимости, systemd и Nginx):
+
+```bash
 chmod +x deploy_no_docker.sh
-
-# 3. Запустить развертывание
 sudo ./deploy_no_docker.sh
 ```
 
-Или еще проще — копируйте и вставляйте эти 4 строки как есть.
-
-Скрипт автоматически:
-- ✅ Установит все зависимости
-- ✅ Создаст системного пользователя
-- ✅ Настроит Backend (Django) и Frontend (Next.js)
-- ✅ Получит SSL сертификат Let's Encrypt
-- ✅ Настроит Nginx и systemd сервисы
-- ✅ Запустит все компоненты
-
-## 🔧 Быстрая проверка после установки
-
-Если окружение уже есть и вы хотите проверить backend вручную:
+4) Проверить статус сервисов и логи:
 
 ```bash
-cd /opt/kontrast-shop/back
-source .venv/bin/activate
-python manage.py check
-python manage.py test
-```
-
-Если `.venv` уже создано, то достаточно `source .venv/bin/activate` и `python manage.py test`.
-
-**Время выполнения**: 10-15 минут (зависит от скорости интернета)
-
----
-
-## 🛠️ Ручная установка (пошагово)
-
-Если вы предпочитаете контроль над каждым шагом или хотите понять, что происходит под капотом.
-
-### Шаг 1: Подготовка системы
-
-```bash
-# Обновить систему
-sudo apt update
-sudo apt upgrade -y
-
-# Установить базовые утилиты
-sudo apt install -y curl wget git build-essential software-properties-common
-```
-
-### Шаг 2: Установка Python 3.10+
-
-```bash
-# Установить Python и pip
-sudo apt install -y python3 python3-pip python3-venv python3-dev
-
-# Проверить версию
-python3 --version  # Должно быть >= 3.10
-```
-
-### Шаг 3: Установка Node.js 20.x
-
-```bash
-# Добавить репозиторий NodeSource
-curl -fsSL https://deb.nodesource.com/setup_20.x | sudo bash -
-
-# Установить Node.js
-sudo apt install -y nodejs
-
-# Проверить версии
-node --version  # Должно быть v20.x
-npm --version
-```
-
-### Шаг 4: Установка Nginx
-
-```bash
-# Установить Nginx
-sudo apt install -y nginx
-
-# Включить автозапуск
-sudo systemctl enable nginx
-sudo systemctl start nginx
-
-# Проверить статус
-sudo systemctl status nginx
-```
-
-### Шаг 5: Установка Certbot
-
-```bash
-# Установить Certbot для Let's Encrypt
-sudo apt install -y certbot
-
-# Проверить версию
-certbot --version
-```
-
-### Шаг 6: Создание пользователя и директорий
-
-```bash
-# Создать системного пользователя kontrast
-sudo useradd -r -s /bin/bash -d /opt/kontrast-shop -m kontrast
-sudo usermod -aG www-data kontrast
-
-# Создать директорию для логов
-sudo mkdir -p /var/log/kontrast-shop
-sudo chown -R kontrast:www-data /var/log/kontrast-shop
-sudo chmod 755 /var/log/kontrast-shop
-```
-
-### Шаг 7: Подготовка кода
-
-```bash
-# Клонировать или скопировать код в /opt/kontrast-shop
-sudo git clone <your-repo-url> /opt/kontrast-shop
-
-# Или скопировать из текущей директории
-sudo cp -r . /opt/kontrast-shop/
-
-# Установить права
-sudo chown -R kontrast:www-data /opt/kontrast-shop
-
-# Перейти в директорию
-cd /opt/kontrast-shop
-```
-
-### Шаг 8: Настройка Backend (Django)
-
-```bash
-cd /opt/kontrast-shop/back
-
-# Создать виртуальное окружение
-sudo -u kontrast python3 -m venv .venv
-
-# Активировать виртуальное окружение
-sudo -u kontrast .venv/bin/pip install --upgrade pip
-
-# Установить зависимости
-sudo -u kontrast .venv/bin/pip install -r requirements.txt
-
-# Создать .env.prod файл
-sudo -u kontrast nano .env.prod
-```
-
-**Содержимое `.env.prod`** (используйте шаблон из `back/.env.prod.example`):
-
-```bash
-# Сгенерируйте секретный ключ:
-# python3 -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"
-DJANGO_SECRET_KEY=your-generated-secret-key-here
-DJANGO_DEBUG=False
-DJANGO_ALLOWED_HOSTS=kontrast-shop.ru,www.kontrast-shop.ru,ваш_server_ip
-
-YOO_KASSA_SHOP_ID=ваш_shop_id
-YOO_KASSA_SECRET_KEY=ваш_secret_key
-YOO_KASSA_RETURN_URL=https://kontrast-shop.ru/
-
-TELEGRAM_BOT_TOKEN=ваш_bot_token
-TELEGRAM_SECRET_CODE=ваш_секретный_код
-```
-
-```bash
-# Установить права на .env.prod
-sudo chown kontrast:www-data .env.prod
-sudo chmod 600 .env.prod
-
-# Применить миграции
-sudo -u kontrast .venv/bin/python manage.py migrate
-
-# Собрать статику
-sudo -u kontrast .venv/bin/python manage.py collectstatic --noinput
-
-# Загрузить начальные данные (опционально)
-sudo -u kontrast .venv/bin/python manage.py load_initial_data
-
-# Создать суперпользователя
-sudo -u kontrast .venv/bin/python manage.py createsuperuser
-```
-
-### Шаг 9: Настройка Frontend (Next.js)
-
-```bash
-cd /opt/kontrast-shop/front
-
-# Создать .env.production
-sudo -u kontrast nano .env.production
-```
-
-**Содержимое `.env.production`**:
-```
-NEXT_PUBLIC_API_URL=https://kontrast-shop.ru/api/
-```
-
-```bash
-# Установить зависимости
-sudo -u kontrast npm install --production
-
-# Собрать production build
-sudo -u kontrast npm run build
-```
-
-### Шаг 10: Создание systemd сервисов
-
-**Backend сервис:**
-
-```bash
-sudo nano /etc/systemd/system/kontrast-backend.service
-```
-
-Вставьте содержимое из `deploy/systemd/kontrast-backend.service`
-
-**Frontend сервис:**
-
-```bash
-sudo nano /etc/systemd/system/kontrast-frontend.service
-```
-
-Вставьте содержимое из `deploy/systemd/kontrast-frontend.service`
-
-**Активация сервисов:**
-
-```bash
-# Перезагрузить systemd
-sudo systemctl daemon-reload
-
-# Включить автозапуск
-sudo systemctl enable kontrast-backend
-sudo systemctl enable kontrast-frontend
-
-# Запустить сервисы
-sudo systemctl start kontrast-backend
-sudo systemctl start kontrast-frontend
-
-# Проверить статус
-sudo systemctl status kontrast-backend
-sudo systemctl status kontrast-frontend
-```
-
-### Шаг 11: Получение SSL сертификата
-
-```bash
-# Остановить Nginx временно
-sudo systemctl stop nginx
-
-# Получить сертификат Let's Encrypt
-sudo certbot certonly --standalone \
-  -d kontrast-shop.ru \
-  -d www.kontrast-shop.ru \
-  --non-interactive \
-  --agree-tos \
-  --email your-email@example.com
-
-# Настроить автообновление сертификата
-(sudo crontab -l 2>/dev/null; echo "0 3 * * * certbot renew --quiet --post-hook 'systemctl reload nginx'") | sudo crontab -
-```
-
-### Шаг 12: Настройка Nginx
-
-```bash
-# Копировать конфигурацию
-sudo cp /opt/kontrast-shop/nginx/nginx.conf.no-docker /etc/nginx/sites-available/kontrast-shop
-
-# Создать симлинк
-sudo ln -s /etc/nginx/sites-available/kontrast-shop /etc/nginx/sites-enabled/
-
-# Удалить default конфигурацию
-sudo rm /etc/nginx/sites-enabled/default
-
-# Проверить конфигурацию
-sudo nginx -t
-
-# Запустить Nginx
-sudo systemctl start nginx
-sudo systemctl enable nginx
-```
-
-### Шаг 13: Настройка файрвола
-
-```bash
-# Разрешить необходимые порты
-sudo ufw allow 22/tcp   # SSH
-sudo ufw allow 80/tcp   # HTTP
-sudo ufw allow 443/tcp  # HTTPS
-
-# Включить файрвол
-sudo ufw enable
-```
-
----
-
-## ✅ Проверка работоспособности
-
-### 1. Проверить сервисы
-
-```bash
-# Статус всех сервисов
 sudo systemctl status kontrast-backend kontrast-frontend nginx
-
-# Логи в реальном времени
-sudo journalctl -u kontrast-backend -f
-sudo journalctl -u kontrast-frontend -f
+sudo journalctl -u kontrast-backend -n 200
 ```
 
-### 2. Проверить доступность
+Примечания и изменения относительно старой инструкции:
+- Сценарии, ориентированные на Docker, перемещены в `scripts/disabled-docker/`.
+- `deploy_no_docker.sh` больше не хардкодит токены — используйте `scripts/setup_env.sh` или заполните `back/.env.prod` вручную.
+- Файл `back/.env.prod` добавлен в `.gitignore` чтобы предотвратить случайный коммит секретов.
 
-```bash
-# Backend API
-curl http://127.0.0.1:8000/api/products/
-curl https://kontrast-shop.ru/api/products/
-
-# Frontend
-curl http://127.0.0.1:3000/
-curl https://kontrast-shop.ru/
-```
-
-### 3. Проверить в браузере
-
-- 🌐 **Главная страница**: https://kontrast-shop.ru
-- 🔧 **Админ панель**: https://kontrast-shop.ru/admin
-- 📚 **API документация**: https://kontrast-shop.ru/swagger
-
----
-
-## 🔄 Обновление приложения
-
-### Автоматическое обновление
-
-```bash
-cd /opt/kontrast-shop
-sudo ./update_no_docker.sh
-```
-
-### Ручное обновление
-
-```bash
-cd /opt/kontrast-shop
-
-# 1. Получить последний код
-sudo -u kontrast git pull
-
-# 2. Обновить Backend
-cd back
-sudo -u kontrast .venv/bin/pip install -r requirements.txt
-sudo -u kontrast .venv/bin/python manage.py migrate
-sudo -u kontrast .venv/bin/python manage.py collectstatic --noinput
-
-# 3. Обновить Frontend
-cd ../front
-sudo -u kontrast npm install --production
-sudo -u kontrast npm run build
-
-# 4. Перезапустить сервисы
-sudo systemctl restart kontrast-backend kontrast-frontend
-sudo systemctl reload nginx
-```
-
----
-
-## 📊 Управление сервисами
-
-### Просмотр статуса
-
-```bash
-# Все сервисы
-sudo systemctl status kontrast-backend kontrast-frontend nginx
-
-# Отдельный сервис
-sudo systemctl status kontrast-backend
-```
+Если нужно, могу автоматически вставить вызов `./scripts/setup_env.sh` в начало `deploy_no_docker.sh` (требуется ваше подтверждение).
 
 ### Просмотр логов
 

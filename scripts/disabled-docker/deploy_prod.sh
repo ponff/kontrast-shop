@@ -74,7 +74,7 @@ fi
 echo "4) Получение SSL через certbot (standalone). Порт 80 должен быть свободен."
 # Остановим локальный nginx/systemd service, если он слушает 80
 if sudo lsof -i:80 -P -n | grep LISTEN >/dev/null 2>&1; then
-  echo "Найден процесс, слушающий порт 80. Попытка его остановить (если это systemd-сервис nginx)")
+  echo "Найден процесс, слушающий порт 80. Попытка его остановить (если это systemd-сервис nginx)" )
   sudo systemctl stop nginx || true
 fi
 
