@@ -1,10 +1,8 @@
 import os
 from decimal import Decimal, ROUND_HALF_UP
-
 import os
 import random
 from decimal import Decimal, ROUND_HALF_UP
-
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.files.base import ContentFile
@@ -14,7 +12,6 @@ from django.db import models
 from django.forms import ValidationError
 from django.utils import timezone
 from django.utils.safestring import mark_safe
-
 COLOR_CHOICES = [
     ('Черный', 'Черный'),
     ('Белый', 'Белый'),
@@ -41,14 +38,12 @@ COLOR_CHOICES = [
     ('Терракотовый', 'Терракотовый'),
     ('-', 'Не выбран'),
 ]
-
 PRODUCT_STATUS_CHOICES = [
     ('in_stock', 'В наличии'),
     ('out_of_stock', 'Нет в наличии'),
     ('preorder', 'Предзаказ'),
     ('discontinued', 'Снят с производства'),
 ]
-
 STATUS_CHOICES = [
     ('-', 'Новый'),
     ('pending_payment', 'Ожидает оплаты'),
@@ -60,48 +55,40 @@ STATUS_CHOICES = [
     ('delivered', 'Доставлен'),
     ('cancelled', 'Отменен'),
 ]
-
 DELIVERY_METHOD_CHOICES = [
     ('cdek', 'СДЭК'),
     ('yandex', 'Яндекс.Доставка'),
     ('courier', 'Курьер'),
     ('russian_post', 'Почта России'),
 ]
-
 class Category(models.Model):
     name = models.CharField(max_length=255, unique=True, verbose_name="Название категории")
     description = models.TextField(verbose_name="Описание", blank=True)
     image = models.ImageField(upload_to="categories/", verbose_name="Изображение категории", blank=True, null=True)
     order = models.PositiveIntegerField(default=0, verbose_name="Порядок сортировки")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата создания")
-
     class Meta:
         verbose_name = "Категория"
         verbose_name_plural = "Категории"
         ordering = ["order", "name"]
-
     def __str__(self):
         return self.name
-
 
 class Product(models.Model):
     name = models.CharField(max_length=255, verbose_name="Название")
     description = models.TextField(verbose_name="Описание", blank=True)
     category = models.ForeignKey(Category, on_delete=models.PROTECT, verbose_name="Категория", null=True, blank=True)
-    
     width = models.FloatField(verbose_name="Ширина (см)", null=True, blank=True)
     height = models.FloatField(verbose_name="Высота (см)", null=True, blank=True)
     depth = models.FloatField(verbose_name="Глубина (см)", null=True, blank=True)
     weight = models.FloatField(verbose_name="Вес (кг)", null=True, blank=True)
     color = models.CharField(max_length=100, verbose_name="Цвет", blank=True, choices=COLOR_CHOICES, default='-')
-    
     image_directory = models.CharField(
         max_length=255,
         verbose_name="Папка с фото",
         blank=True,
         null=True,
     )
-
     self_price = models.FloatField(default=0.00, verbose_name="Себестоимость")
     price = models.FloatField(
         default=0.00, verbose_name="Цена с наценкой", editable=False
@@ -121,14 +108,11 @@ class Product(models.Model):
     class Meta:
         verbose_name = "Товар"
         verbose_name_plural = "Товары"
-
     def __str__(self):
         return f"{self.name}"
-
     @classmethod
     def get_available_directories(cls):
         return PublicMedia.objects.values_list("target_dir", flat=True).distinct()
-
     def save(self, *args, **kwargs):
         self.price = self.calculate_price()
         super().save(*args, **kwargs)
@@ -137,13 +121,11 @@ class Product(models.Model):
         MARKUP_PERCENT = Decimal("10")
         result = Decimal(str(self.self_price)) * (1 + MARKUP_PERCENT / Decimal("100"))
         return result.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-
     @property
     def images(self):
         if self.image_directory:
             return PublicMedia.objects.filter(target_dir=self.image_directory).order_by('file')
         return PublicMedia.objects.none()  # Возвращаем QuerySet, а не список
-
     def image_preview(self):
         imgs = self.images
         if imgs.exists():  # Теперь работает, т.к. это QuerySet
@@ -153,11 +135,7 @@ class Product(models.Model):
             ])
             return mark_safe(previews)
         return "Нет фото"
-
-
     image_preview.short_description = "Предпросмотр фото"
-
-
 class Order(models.Model):
     full_name = models.CharField(max_length=300, verbose_name="ФИО")
     phone = models.CharField(max_length=20, verbose_name="Телефон")
@@ -201,12 +179,10 @@ class Order(models.Model):
         null=True,
         verbose_name="ID платежа ЮKassa",
     )
-
     class Meta:
         verbose_name = "Заказ"
         verbose_name_plural = "Заказы"
         ordering = ["-order_date", "-status"]
-
     user = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,
@@ -215,13 +191,10 @@ class Order(models.Model):
         verbose_name="Пользователь",
         related_name="orders",
     )
-
     def __str__(self):
         return f"Заказ #{self.id} - {self.full_name}"
-
     def _generate_pickup_code(self):
         return ''.join(random.choices('0123456789', k=6))
-
     def save(self, *args, **kwargs):
         today = timezone.localdate()
         if self.pickup_code_generated_at != today or not self.pickup_code:
@@ -235,8 +208,6 @@ class Order(models.Model):
             self.pickup_code = self._generate_pickup_code()
             self.pickup_code_generated_at = today
             self.save(update_fields=['pickup_code', 'pickup_code_generated_at'])
-
-
 class CustomOrder(models.Model):
     user = models.ForeignKey(
         User,
@@ -252,16 +223,12 @@ class CustomOrder(models.Model):
     order_date = models.DateTimeField(auto_now_add=True, verbose_name="Дата заказа")
     comment = models.TextField(verbose_name="Комментарий", blank=True)
     color = models.CharField(max_length=100, verbose_name="Цвет", blank=True, choices=COLOR_CHOICES, default='-')
-
     class Meta:
         verbose_name = "Индивидуальный заказ"
         verbose_name_plural = "Индивидуальные заказы"
         ordering = ["-order_date"]
-
     def __str__(self):
         return f"Индивидуальный заказ #{self.id} - {self.full_name}"
-
-
 class UserProfile(models.Model):
     user = models.OneToOneField(
         User,
@@ -284,15 +251,11 @@ class UserProfile(models.Model):
     postal_code = models.CharField(max_length=20, blank=True, verbose_name="Почтовый индекс")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата создания")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Дата обновления")
-
     class Meta:
         verbose_name = "Профиль пользователя"
         verbose_name_plural = "Профили пользователей"
-
     def __str__(self):
         return f"Профиль {self.user.get_full_name() or self.user.username}"
-
-
 class CartItem(models.Model):
     user = models.ForeignKey(
         User,
@@ -316,52 +279,37 @@ class CartItem(models.Model):
     color = models.CharField(max_length=100, blank=True, null=True, verbose_name="Выбранный цвет")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Добавлен")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Обновлён")
-
     class Meta:
         verbose_name = "Элемент корзины"
         verbose_name_plural = "Элементы корзин"
         unique_together = ("user", "product", "color")
-
     def __str__(self):
         return f"{self.product.name} x {self.quantity} ({self.user or 'Гость'})"
-
-
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-
-
 @receiver(post_save, sender=User)
 def create_user_profile(sender, instance, created, **kwargs):
     if created:
         UserProfile.objects.create(user=instance)
-
-
 class OverwriteStorage(default_storage.__class__):
-
     def get_available_name(self, name, max_length=None):
         return name
-
     def _save(self, name, content):
         if self.exists(name):
             self.delete(name)
         return super()._save(name, content)
-
-
 class PublicMedia(models.Model):
     file = models.FileField(upload_to="", storage=OverwriteStorage, verbose_name="Файл")
     uploaded_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата загрузки")
-
     target_dir = models.CharField(
         max_length=255,
         blank=True,
         null=True,
         verbose_name="Папка для сохранения",
     )
-
     class Meta:
         verbose_name = "Медиафайл"
         verbose_name_plural = "Медиафайлы"
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._original_file_name = self.file.name if self.file else None
@@ -370,7 +318,6 @@ class PublicMedia(models.Model):
         if self.file:
             self._original_file = self.file.read()
             self.file.seek(0)
-
     def save(self, *args, **kwargs):
         # Если файл был изменен (или это новая запись)
         if self.file and (
@@ -419,23 +366,19 @@ class PublicMedia(models.Model):
         if self.file and default_storage.exists(self.file.name):
             default_storage.delete(self.file.name)
         super().delete(*args, **kwargs)
-
     @property
     def original_path(self):
         return self.file.name if self.file else ""
-
     @property
     def file_type(self):
         if not self.file:
             return ""
         return os.path.splitext(self.file.name)[1][1:].lower()
-
     @property
     def file_size(self):
         if self.file and default_storage.exists(self.file.name):
             return default_storage.size(self.file.name)
         return 0
-
     def get_readable_size(self):
         size = self.file_size
         for unit in ["B", "KB", "MB", "GB"]:
@@ -443,11 +386,8 @@ class PublicMedia(models.Model):
                 return f"{size:.1f} {unit}"
             size /= 1024.0
         return f"{size:.1f} TB"
-
     def __str__(self):
         return self.original_path
-
-
 class TelegramUser(models.Model):
     user_id = models.BigIntegerField(unique=True, verbose_name="ID пользователя")
     username = models.CharField(max_length=255, null=True, blank=True, verbose_name="Имя пользователя")
@@ -457,10 +397,8 @@ class TelegramUser(models.Model):
     is_approved = models.BooleanField(default=False, verbose_name="Подтвержден доступ")  # Добавьте это поле
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата регистрации")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Дата обновления")
-
     class Meta:
         verbose_name = "Пользователь Telegram"
         verbose_name_plural = "Пользователи Telegram"
-
     def __str__(self):
         return f"{self.username or self.first_name} ({self.user_id})"
